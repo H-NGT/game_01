@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Number Gate Runner</title>
-    <link rel="stylesheet" href="./src/visual/styles.css?v=mobile-final-2" />
+    <link rel="stylesheet" href="./src/visual/styles.css?v=pause-ui-2" />
     <script type="importmap">
       {
         "imports": {
@@ -32,6 +32,11 @@
           <p id="waveValue" class="hud__value">1</p>
         </div>
       </section>
+
+      <button id="pauseButton" class="pause-button" type="button" aria-label="一時停止">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
 
       <section id="startOverlay" class="overlay overlay--active" aria-live="polite">
         <div class="overlay__panel">
@@ -63,6 +68,17 @@
           </button>
         </div>
       </section>
+
+      <section id="pauseOverlay" class="overlay overlay--pause" aria-live="polite">
+        <div class="overlay__panel overlay__panel--pause">
+          <p class="overlay__kicker">PAUSED</p>
+          <h2>PAUSE</h2>
+          <p class="overlay__copy">ゲームを一時停止中</p>
+          <button id="resumeButton" class="primary-button primary-button--retry" type="button">
+            RESUME
+          </button>
+        </div>
+      </section>
     </main>
     <!-- CODEX_END: VISUAL_AND_UI -->
 
@@ -72,7 +88,7 @@
       // 購読、入力接続とロジックループを開始する。VisualController より先に
       // 評価され、描画開始時点で window.gameState の存在を保証する。
       import './src/core/index.js';
-      import { VisualController } from './src/visual/visual.js?v=mobile-final-2';
+      import { VisualController } from './src/visual/visual.js?v=pause-ui-2';
 
       const visual = new VisualController({
         mount: document.querySelector('#gameCanvas'),
@@ -83,6 +99,8 @@
           startOverlay: document.querySelector('#startOverlay'),
           gameOverOverlay: document.querySelector('#gameOverOverlay'),
           clearOverlay: document.querySelector('#clearOverlay'),
+          pauseOverlay: document.querySelector('#pauseOverlay'),
+          pauseButton: document.querySelector('#pauseButton'),
           finalScore: document.querySelector('#finalScore'),
           clearScore: document.querySelector('#clearScore')
         }
@@ -93,8 +111,8 @@
 
       const previewMode = new URLSearchParams(window.location.search).get('preview');
       if (previewMode === 'play') {
-        visual.requestPreviewStart();
-      } else if (previewMode === 'gameover' || previewMode === 'clear') {
+        visual.requestPreviewStatus('playing');
+      } else if (previewMode === 'gameover' || previewMode === 'clear' || previewMode === 'paused') {
         visual.requestPreviewStatus(previewMode);
       }
 
@@ -118,6 +136,24 @@
         emitGameRequest('visual:restart-requested');
       });
 
+      const requestPauseToggle = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof window.togglePause === 'function') {
+          window.togglePause();
+          return;
+        }
+        if (window.gameState?.status === 'paused') {
+          window.GameAPI?.resume?.();
+        } else {
+          window.GameAPI?.pause?.();
+        }
+      };
+
+      document.querySelector('#pauseButton').addEventListener('click', requestPauseToggle);
+      document.querySelector('#resumeButton').addEventListener('click', requestPauseToggle);
+      blockOverlayTouch(document.querySelector('#pauseOverlay'));
+
       function installTouchLock(root) {
         if (!root) return;
 
@@ -136,6 +172,17 @@
         document.addEventListener('gesturestart', preventPageGesture, { passive: false });
         document.addEventListener('gesturechange', preventPageGesture, { passive: false });
         root.addEventListener('contextmenu', preventPageGesture);
+      }
+
+      function blockOverlayTouch(overlay) {
+        if (!overlay) return;
+        const stop = (event) => {
+          event.stopPropagation();
+          if (event.type === 'touchmove' && event.cancelable) event.preventDefault();
+        };
+        ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend'].forEach((type) => {
+          overlay.addEventListener(type, stop, { passive: false });
+        });
       }
     </script>
   </body>

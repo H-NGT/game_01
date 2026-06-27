@@ -121,6 +121,50 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.pause-button {
+  position: absolute;
+  top: max(92px, calc(env(safe-area-inset-top) + 84px));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 5;
+  display: none;
+  place-items: center;
+  grid-template-columns: 6px 6px;
+  gap: 6px;
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(6, 18, 28, 0.78);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pause-button span {
+  display: block;
+  width: 6px;
+  height: 22px;
+  border-radius: 4px;
+  background: #f6fbff;
+  box-shadow: 0 0 16px rgba(86, 216, 255, 0.38);
+}
+
+.pause-button--visible {
+  display: grid;
+}
+
+.pause-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.pause-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 4px;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -145,6 +189,17 @@ button {
   background:
     linear-gradient(180deg, rgba(3, 9, 16, 0.3), rgba(3, 9, 16, 0.84)),
     radial-gradient(circle at center, rgba(86, 216, 255, 0.12) 0%, rgba(0, 0, 0, 0.5) 72%);
+}
+
+.overlay--pause {
+  z-index: 9;
+  place-items: center;
+  transform: none;
+}
+
+.overlay--pause::before {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
 }
 
 .overlay--active {
@@ -174,6 +229,18 @@ button {
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.48),
     0 0 44px rgba(112, 246, 163, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.overlay__panel--pause {
+  width: min(360px, calc(100vw - 44px));
+  border-color: rgba(86, 216, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(20, 43, 60, 0.94), rgba(5, 16, 25, 0.9)),
+    rgba(5, 16, 25, 0.9);
+  box-shadow:
+    0 24px 90px rgba(0, 0, 0, 0.5),
+    0 0 46px rgba(86, 216, 255, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
@@ -279,8 +346,20 @@ h2 {
     font-size: clamp(1.04rem, 5vw, 1.45rem);
   }
 
+  .pause-button {
+    top: max(86px, calc(env(safe-area-inset-top) + 78px));
+    right: max(14px, env(safe-area-inset-right));
+    width: 54px;
+    height: 54px;
+  }
+
   .overlay {
     align-items: end;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .overlay--pause {
+    align-items: center;
     padding-bottom: max(18px, env(safe-area-inset-bottom));
   }
 
@@ -288,6 +367,12 @@ h2 {
     width: calc(100vw - 36px);
     max-width: 390px;
     padding: 24px 18px 20px;
+  }
+
+  .overlay__panel--pause {
+    width: calc(100vw - 44px);
+    max-width: 360px;
+    padding: 30px 20px 24px;
   }
 
   .overlay__copy {

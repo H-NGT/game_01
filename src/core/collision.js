@@ -72,23 +72,25 @@ export function resolvePlayerGate(player, gatePool, ctx) {
   }
 }
 
-/** 自機に接触した敵を処理する。生存していれば true。 */
+/**
+ * 自機の防衛ライン(z = player.z)を突破した敵を処理する。
+ * 「接触」も「横へ避けられて倒し漏らした通過」も、ライン到達(z >= player.z)で
+ * まとめて検出する。突破された敵は残HP分だけ value を奪い、value<=0 で
+ * ゲームオーバー(false を返す)。
+ */
 export function resolvePlayerEnemy(player, enemyPool, ctx) {
   const enemies = enemyPool.items;
-  const rPE = CONFIG.player.radius + CONFIG.enemies.radius;
-  const rPE2 = rPE * rPE;
   let alive = true;
   for (let i = 0; i < enemies.length; i++) {
     const e = enemies[i];
     if (!e.active) continue;
-    const dx = e.x - player.x;
-    const dz = e.z - player.z;
-    if (dx * dx + dz * dz > rPE2) continue;
+    if (e.z < player.z) continue; // まだライン手前
 
-    const damage = Math.max(1, Math.ceil(e.hp));
+    const contact = Math.abs(e.x - player.x) <= CONFIG.player.radius + CONFIG.enemies.radius;
+    const damage = Math.max(CONFIG.enemies.breachDamageMin, Math.ceil(e.hp));
     const survived = damagePlayer(player, damage);
     enemyPool.release(e);
-    ctx.emit({ type: 'playerHit', x: e.x, y: e.y, z: e.z, damage });
+    ctx.emit({ type: 'playerHit', x: e.x, y: e.y, z: player.z, damage, contact });
     if (!survived) {
       alive = false;
       break;

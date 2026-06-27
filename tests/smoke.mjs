@@ -70,6 +70,7 @@ function ok(name, cond) {
 {
   const g = new Game();
   g.start();
+  g.gatePool.releaseAll(); // スタート強化ゲートを除去して手動ペアのみ検証
   g.player.x = 0;
   g.player.value = 10;
   recomputeStats(g.player);
@@ -97,8 +98,70 @@ function ok(name, cond) {
   g.reset();
   ok('reset で score=0', g.state.score === 0);
   ok('reset で wave=1', g.state.wave === 1);
-  ok('reset で弾/敵/ゲートが空', g.state.bullets.length === 0 && g.state.enemies.length === 0 && g.state.gates.length === 0);
+  ok('reset で弾/敵が空', g.state.bullets.length === 0 && g.state.enemies.length === 0);
+  ok('reset でスタート強化ゲートのみ存在', g.state.gates.length === 2);
   ok('reset で value 初期化', g.player.value === 1);
+  ok('reset で isPaused=false', g.state.isPaused === false);
+}
+
+// --- 6. ポーズ中は全更新が停止する ------------------------------------------
+{
+  const g = new Game();
+  g.start();
+  g.player.value = 9999; // 4秒間生き延びさせる
+  recomputeStats(g.player);
+  for (let i = 0; i < 240; i++) {
+    g.input.targetX = 0;
+    g.update(1 / 60);
+  }
+  ok('ポーズ前にプレイ継続', g.state.status === 'playing');
+  const snap = {
+    time: g.state.time,
+    score: g.state.score,
+    enemies: g.state.enemies.length,
+    px: g.player.x,
+  };
+  const paused = g.togglePause();
+  ok('togglePause で isPaused=true', paused === true && g.state.isPaused === true);
+  for (let i = 0; i < 120; i++) {
+    g.input.targetX = 3; // 動かそうとしても無効のはず
+    g.update(1 / 60);
+  }
+  ok('ポーズ中: time 停止', g.state.time === snap.time);
+  ok('ポーズ中: score 停止', g.state.score === snap.score);
+  ok('ポーズ中: 敵数固定', g.state.enemies.length === snap.enemies);
+  ok('ポーズ中: プレイヤー移動なし', g.player.x === snap.px);
+  g.togglePause();
+  ok('再開で isPaused=false', g.state.isPaused === false);
+  const t2 = g.state.time;
+  for (let i = 0; i < 60; i++) g.update(1 / 60);
+  ok('再開後: time 進行', g.state.time > t2);
+}
+
+// --- 7. 敵がライン突破でゲームオーバー ---------------------------------------
+{
+  const g = new Game();
+  g.start();
+  g.player.value = 2;
+  recomputeStats(g.player);
+  // 防衛ラインを越えた位置に強敵を直接配置(接触/通過の統合判定)
+  g.enemyPool.acquire({ x: 0, z: g.player.z + 0.5, hp: 50, speed: 0 });
+  g.update(1 / 60);
+  ok('ライン突破でゲームオーバー', g.state.status === 'gameover');
+  ok('突破で value が枯渇', g.player.value <= 0);
+}
+
+// --- 8. 敵が開始直後(約1.2秒)に出現する ------------------------------------
+{
+  // デフォルト value(=1)の弱い火力なら敵は即殲滅されず配列に滞留する。
+  const g = new Game();
+  g.start();
+  let firstSpawn = null;
+  for (let i = 0; i < 180 && g.state.status === 'playing'; i++) {
+    g.update(1 / 60);
+    if (firstSpawn === null && g.state.enemies.length > 0) firstSpawn = g.state.time;
+  }
+  ok('敵が約1.5秒以内に出現', firstSpawn !== null && firstSpawn <= 1.6);
 }
 
 console.log(`\n結果: ${pass} passed, ${fail} failed`);

@@ -33,6 +33,7 @@ export class Game {
     // 描画層へ公開する中央ステート(座標はすべてフラット x/y/z)
     this.state = {
       status: 'ready', // 'ready' | 'playing' | 'paused' | 'gameover'
+      isPaused: false, // 一時停止フラグ(Codex のポーズボタン用)
       score: 0,
       wave: 1,
       time: 0,
@@ -89,24 +90,55 @@ export class Game {
 
     this.input.reset();
     this.state.status = 'ready';
+    this.state.isPaused = false;
     this.state.score = 0;
     this.state.wave = 1;
     this.state.time = 0;
     this.state.scrollSpeed = CONFIG.world.baseScrollSpeed;
     this.state.events.length = 0;
     this._waveTimer = 0;
-    this._enemyTimer = 0;
+    // 猶予明け(firstSpawnDelaySec)に最初の敵が即出るようタイマを先行充填
+    this._enemyTimer = CONFIG.enemies.baseSpawnIntervalSec;
     // 最初のゲートが firstSpawnAtSec で出るようタイマを先行させる
     this._gateTimer = CONFIG.gates.spawnIntervalSec - CONFIG.gates.firstSpawnAtSec;
+    // スタート強化ゲート: 近距離(starterZ)に両方バフのペアを出し、
+    // 最初の敵が到達する前にプレイヤーを強化できるようにする。
+    spawnGatePair(this.gatePool, 1, CONFIG.world.baseScrollSpeed, {
+      z: CONFIG.gates.starterZ,
+      bothBuff: true,
+    });
     this._syncRenderArrays();
   }
 
+  /**
+   * 一時停止 / 再開を切り替える。戻り値は切り替え後の isPaused。
+   * status と isPaused の両方を切り替える:
+   *  - isPaused        … ユーザー要求のフラグ(描画層が参照可)
+   *  - status='paused' … 描画層(visual.js)のポーズUI判定に使用
+   */
+  togglePause() {
+    if (this.state.status === 'playing') {
+      this.state.status = 'paused';
+      this.state.isPaused = true;
+    } else if (this.state.status === 'paused') {
+      this.state.status = 'playing';
+      this.state.isPaused = false;
+    }
+    return this.state.isPaused;
+  }
+
   pause() {
-    if (this.state.status === 'playing') this.state.status = 'paused';
+    if (this.state.status === 'playing') {
+      this.state.status = 'paused';
+      this.state.isPaused = true;
+    }
   }
 
   resume() {
-    if (this.state.status === 'paused') this.state.status = 'playing';
+    if (this.state.status === 'paused') {
+      this.state.status = 'playing';
+      this.state.isPaused = false;
+    }
   }
 
   /** update 後に呼ばれる描画フック(Codex 用)。 */
@@ -125,7 +157,8 @@ export class Game {
    * 1フレーム進める。dt は秒。テスト時はこれを直接呼べる。
    */
   update(dt) {
-    if (this.state.status !== 'playing') return;
+    // 一時停止中・プレイ中以外は全更新(移動/弾/敵/生成/タイマー)を完全停止
+    if (this.state.status !== 'playing' || this.state.isPaused) return;
     const s = this.state;
     s.events.length = 0; // 前フレームのイベントを破棄
     s.time += dt;

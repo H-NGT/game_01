@@ -14,7 +14,7 @@ export const CONFIG = {
   },
 
   world: {
-    spawnZ: -70, // 敵・ゲートの出現位置(奥)
+    spawnZ: -52, // 敵・ゲートの出現位置(奥)。近めにして出現を明確に・密度を確保
     despawnZ: 9, // プレイヤーを通り過ぎて消滅する位置(手前)
     baseScrollSpeed: 16, // 敵・ゲートが手前へ流れる基本速度 (units/s)
     scrollSpeedPerWave: 0.8, // wave ごとの加速量
@@ -48,10 +48,11 @@ export const CONFIG = {
     radius: 1.2,
     baseHp: 3, // wave1 の基本HP
     hpPerWave: 2, // wave ごとのHP増加
-    baseSpawnIntervalSec: 0.65, // 出現間隔(基本)
-    minSpawnIntervalSec: 0.18,
+    baseSpawnIntervalSec: 0.8, // 出現間隔(基本)
+    minSpawnIntervalSec: 0.25,
     spawnIntervalPerWave: 0.04, // wave ごとに間隔短縮
-    firstSpawnDelaySec: 3, // 開始直後の猶予(最初のゲートで強化する時間を確保)
+    firstSpawnDelaySec: 1.2, // 開始直後の短い猶予(スタート強化ゲートを取る時間)
+    breachDamageMin: 1, // 突破された敵が与える value ダメージの最小値
   },
 
   gates: {
@@ -60,6 +61,7 @@ export const CONFIG = {
     pairOffsetX: 2.0, // 左右ゲートの中心オフセット
     spawnIntervalSec: 5, // ゲート出現間隔
     firstSpawnAtSec: 1.5, // 最初のゲートが出現するまでの時間
+    starterZ: -22, // スタート時に近距離へ出す強化ゲートの出現位置(敵より先に到達)
   },
 
   scoring: {

@@ -22,15 +22,20 @@ if (typeof window !== 'undefined') {
     reset: () => game.reset(),
     pause: () => game.pause(),
     resume: () => game.resume(),
+    togglePause: () => game.togglePause(),
     attachInput: (el) => game.attachInput(el),
     setRenderHook: (fn) => game.setRenderHook(fn),
     config: CONFIG,
     _game: game,
   };
 
-  // Codex UI のボタンから飛んでくる開始/リスタート要求を購読
+  // 一時停止トグル(Codex のポーズボタンから直接呼べるグローバル関数)
+  window.togglePause = () => game.togglePause();
+
+  // Codex UI のボタンから飛んでくる開始/リスタート/ポーズ要求を購読
   window.addEventListener('visual:start-requested', () => game.start());
   window.addEventListener('visual:restart-requested', () => game.start());
+  window.addEventListener('visual:pause-requested', () => game.togglePause());
 
   // 入力接続とループ開始
   const boot = () => {
@@ -54,6 +59,7 @@ if (typeof window !== 'undefined') {
  *
  *  [読み取り] window.gameState  ※すべて読み取り専用・座標はフラット x/y/z
  *    .status   : 'ready' | 'playing' | 'paused' | 'gameover'
+ *    .isPaused : boolean  // 一時停止中は true(描画は継続・ロジックは停止)
  *    .score    : number
  *    .wave     : number
  *    .player   : { id, x, y, z, value, shotCount, fireRate, bulletPower }
@@ -68,7 +74,9 @@ if (typeof window !== 'undefined') {
  *  [制御] 以下の CustomEvent を window へ dispatch(コア層が購読):
  *    'visual:start-requested'    // 開始 / リスタート
  *    'visual:restart-requested'  // リスタート
- *  または window.GameAPI.start() / reset() / pause() / resume() を直接呼ぶ。
+ *    'visual:pause-requested'    // 一時停止 / 再開トグル
+ *  または window.GameAPI.start()/reset()/pause()/resume()/togglePause()、
+ *  もしくは window.togglePause() を直接呼ぶ。
  *
  *  [描画フック] 任意: window.GameAPI.setRenderHook((state, dt) => { ... })
  *    update 後に毎フレーム呼ばれる(独自 RAF を持つ場合は不要)。

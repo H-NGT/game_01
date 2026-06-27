@@ -82,7 +82,7 @@ export class VisualController {
 
   requestPreviewStatus(status) {
     this.previewStatusOverride = status;
-    this.previewScoreOverride = 1280;
+    this.previewScoreOverride = status === 'gameover' || status === 'clear' ? 1280 : null;
     if (window.gameState) return;
     this.previewState.status = status;
     if (status === 'gameover' || status === 'clear') this.previewState.score = Math.max(this.previewState.score, 1280);
@@ -543,9 +543,15 @@ export class VisualController {
     if (status !== this.lastStatus) {
       this.lastStatus = status;
       const isClear = status === 'clear' || status === 'cleared' || status === 'win' || status === 'victory';
+      const isPaused = status === 'paused' || status === 'pause';
       this.hud.startOverlay.classList.toggle('overlay--active', status === 'ready' || status === 'start');
       this.hud.gameOverOverlay.classList.toggle('overlay--active', status === 'gameover' || status === 'over');
       if (this.hud.clearOverlay) this.hud.clearOverlay.classList.toggle('overlay--active', isClear);
+      if (this.hud.pauseOverlay) this.hud.pauseOverlay.classList.toggle('overlay--active', isPaused);
+      if (this.hud.pauseButton) {
+        this.hud.pauseButton.classList.toggle('pause-button--visible', status === 'playing');
+        this.hud.pauseButton.setAttribute('aria-pressed', isPaused ? 'true' : 'false');
+      }
     }
   }
 
