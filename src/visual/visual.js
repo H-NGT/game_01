@@ -6,6 +6,7 @@ const ENEMY_COLOR = 0xff5d8f;
 const GATE_ADD_COLOR = 0x4cc9ff;
 const GATE_MULTIPLY_COLOR = 0x70f6a3;
 const GATE_PENALTY_COLOR = 0xff6f6f;
+const GATE_WEAPON_COLOR = 0xffd166;
 const TRACK_WIDTH = 8;
 const TRACK_LENGTH = 72;
 
@@ -631,6 +632,7 @@ function getItemId(item, index) {
 
 function getOperator(item) {
   const operator = item.operator ?? item.op ?? item.type ?? 'add';
+  if (operator === 'weapon') return 'weapon';
   if (operator === 'x' || operator === '*' || operator === 'mul' || operator === 'multiply') {
     return 'multiply';
   }
@@ -642,6 +644,7 @@ function getOperator(item) {
 function gateLabel(item) {
   const value = item.value ?? item.amount ?? 1;
   const operator = getOperator(item);
+  if (operator === 'weapon') return weaponLabel(item.weapon);
   if (operator === 'multiply') return `×${value}`;
   if (operator === 'subtract') return `−${value}`;
   if (operator === 'divide') return `÷${value}`;
@@ -650,6 +653,9 @@ function gateLabel(item) {
 
 function gateTheme(item) {
   const operator = getOperator(item);
+  if (operator === 'weapon') {
+    return { key: 'weapon', color: GATE_WEAPON_COLOR };
+  }
   if (operator === 'multiply') {
     return { key: 'multiply', color: GATE_MULTIPLY_COLOR };
   }
@@ -672,11 +678,14 @@ function applyGateTheme(mesh, item) {
 
 function textStyleForGate(item) {
   const operator = getOperator(item);
+  const isWeapon = operator === 'weapon';
   const isMultiply = operator === 'multiply';
   const isPenalty = operator === 'subtract' || operator === 'divide';
   return {
     color: isPenalty ? '#ffffff' : '#071019',
-    background: isPenalty
+    background: isWeapon
+      ? 'rgba(255, 209, 102, 0.96)'
+      : isPenalty
       ? 'rgba(255, 111, 111, 0.9)'
       : isMultiply
         ? 'rgba(112, 246, 163, 0.96)'
@@ -685,6 +694,16 @@ function textStyleForGate(item) {
     scaleX: 1.72,
     scaleY: 0.78
   };
+}
+
+function weaponLabel(weapon) {
+  const labels = {
+    rifle: 'RIFLE',
+    machinegun: 'MG',
+    bazooka: 'BZK',
+    rocket: 'RKT'
+  };
+  return labels[weapon] ?? 'GUN';
 }
 
 function getEffectColor(type) {

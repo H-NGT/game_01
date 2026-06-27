@@ -11,7 +11,7 @@
 //   - setRenderHook(fn) で update 後に fn(state, dt) を呼べる(push型連携も可)。
 // =============================================================================
 
-import { CONFIG } from './config.js';
+import { CONFIG, getDifficultyConfig, normalizeDifficultyLevel } from './config.js';
 import { ObjectPool } from './pool.js';
 import { createPlayer, updatePlayer, recomputeStats } from './player.js';
 import { createBulletSystem, firePlayer, updateBullets } from './bullets.js';
@@ -29,6 +29,8 @@ export class Game {
     this.enemyPool = createEnemySystem();
     this.gatePool = createGateSystem();
     this.input = new InputController();
+    this.difficultyLevel = CONFIG.difficulties.defaultLevel;
+    this.difficulty = getDifficultyConfig(this.difficultyLevel);
 
     // 描画層へ公開する中央ステート(座標はすべてフラット x/y/z)
     this.state = {
@@ -38,6 +40,10 @@ export class Game {
       wave: 1,
       time: 0,
       scrollSpeed: CONFIG.world.baseScrollSpeed,
+      difficulty: {
+        level: this.difficultyLevel,
+        label: this.difficulty.label,
+      },
       player: this.player,
       bullets: [], // 使用中の弾(毎フレーム詰め直し)
       enemies: [], // 使用中の敵
@@ -96,17 +102,19 @@ export class Game {
     this.state.wave = 1;
     this.state.time = 0;
     this.state.scrollSpeed = CONFIG.world.baseScrollSpeed;
+    this.setDifficulty(this.difficultyLevel);
     this.state.events.length = 0;
     this._waveTimer = 0;
     // 猶予明け(firstSpawnDelaySec)に最初の敵が即出るようタイマを先行充填
-    this._enemyTimer = CONFIG.enemies.baseSpawnIntervalSec;
+    this._enemyTimer = this._currentEnemyInterval();
     // 最初のゲートが firstSpawnAtSec で出るようタイマを先行させる
     this._gateTimer = CONFIG.gates.spawnIntervalSec - CONFIG.gates.firstSpawnAtSec;
     // スタート強化ゲート: 近距離(starterZ)に両方バフのペアを出し、
     // 最初の敵が到達する前にプレイヤーを強化できるようにする。
     spawnGatePair(this.gatePool, 1, CONFIG.world.baseScrollSpeed, {
       z: CONFIG.gates.starterZ,
-      bothBuff: true,
+      bothBuff: this.difficulty.starterBothBuff,
+      difficulty: this.difficultyLevel,
     });
     this._syncRenderArrays();
   }
@@ -140,6 +148,16 @@ export class Game {
       this.state.status = 'playing';
       this.state.isPaused = false;
     }
+  }
+
+  /** 難易度(1-5)を変更する。プレイ中も次のスポーンから即反映される。 */
+  setDifficulty(level) {
+    this.difficultyLevel = normalizeDifficultyLevel(level);
+    this.difficulty = getDifficultyConfig(this.difficultyLevel);
+    this.state.difficulty.level = this.difficultyLevel;
+    this.state.difficulty.label = this.difficulty.label;
+    this._enemyTimer = Math.min(this._enemyTimer, this._currentEnemyInterval());
+    return this.state.difficulty;
   }
 
   /** update 後に呼ばれる描画フック(Codex 用)。 */
@@ -193,16 +211,15 @@ export class Game {
 
     // 敵スポーン(開始直後は猶予期間で出さない)
     if (s.time >= CONFIG.enemies.firstSpawnDelaySec) {
-      const enemyInterval = Math.max(
-        CONFIG.enemies.minSpawnIntervalSec,
-        CONFIG.enemies.baseSpawnIntervalSec - (s.wave - 1) * CONFIG.enemies.spawnIntervalPerWave
-      );
+      const enemyInterval = this._currentEnemyInterval();
       this._enemyTimer += dt;
       while (this._enemyTimer >= enemyInterval) {
         this._enemyTimer -= enemyInterval;
         // wave が上がると 1 回のスポーンで複数体まとめて出す(密度を上げる)。
-        const burst = burstCount(s.wave);
-        for (let k = 0; k < burst; k++) spawnEnemy(this.enemyPool, s.wave, s.scrollSpeed);
+        const burst = burstCount(s.wave, this.difficultyLevel);
+        for (let k = 0; k < burst; k++) {
+          spawnEnemy(this.enemyPool, s.wave, s.scrollSpeed, undefined, this.difficultyLevel);
+        }
       }
     }
     updateEnemies(this.enemyPool, dt);
@@ -211,7 +228,7 @@ export class Game {
     this._gateTimer += dt;
     if (this._gateTimer >= CONFIG.gates.spawnIntervalSec) {
       this._gateTimer -= CONFIG.gates.spawnIntervalSec;
-      spawnGatePair(this.gatePool, s.wave, s.scrollSpeed);
+      spawnGatePair(this.gatePool, s.wave, s.scrollSpeed, { difficulty: this.difficultyLevel });
     }
     updateGates(this.gatePool, dt);
 
@@ -235,6 +252,14 @@ export class Game {
     if (typeof window !== 'undefined' && window.dispatchEvent) {
       window.dispatchEvent(new CustomEvent('logic:gameover', { detail: { score: this.state.score, wave: this.state.wave } }));
     }
+  }
+
+  _currentEnemyInterval() {
+    return Math.max(
+      CONFIG.enemies.minSpawnIntervalSec,
+      (CONFIG.enemies.baseSpawnIntervalSec - (this.state.wave - 1) * CONFIG.enemies.spawnIntervalPerWave) *
+        this.difficulty.enemyIntervalMul
+    );
   }
 
   /** プールの使用中要素だけを描画用配列へ詰め直す(配列自体は再利用)。 */

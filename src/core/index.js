@@ -23,6 +23,7 @@ if (typeof window !== 'undefined') {
     pause: () => game.pause(),
     resume: () => game.resume(),
     togglePause: () => game.togglePause(),
+    setDifficulty: (level) => game.setDifficulty(level),
     attachInput: (el) => game.attachInput(el),
     setRenderHook: (fn) => game.setRenderHook(fn),
     config: CONFIG,
@@ -36,6 +37,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('visual:start-requested', () => game.start());
   window.addEventListener('visual:restart-requested', () => game.start());
   window.addEventListener('visual:pause-requested', () => game.togglePause());
+  window.addEventListener('visual:difficulty-requested', (event) => {
+    game.setDifficulty(event.detail?.level);
+  });
 
   // 入力接続とループ開始
   const boot = () => {

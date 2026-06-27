@@ -306,5 +306,25 @@ function ok(name, cond) {
   ok('高HP(999)でも突破ダメージは同じ(=4)', dmgs[1] === 4);
 }
 
+// --- 17. 難易度設定: 5段階で敵密度と固さが変わる ---------------------------
+{
+  const g = new Game();
+  ok('デフォルト難易度は3', g.state.difficulty.level === 3);
+  g.setDifficulty(5);
+  ok('setDifficulty で state に反映', g.state.difficulty.level === 5 && g.state.difficulty.label === 'NIGHTMARE');
+  g.setDifficulty(99);
+  ok('難易度は1-5に丸められる', g.state.difficulty.level === 5);
+  ok('高難易度ほど同時出現数が増える', burstCount(1, 5) > burstCount(1, 1));
+
+  const originalRandom = Math.random;
+  Math.random = () => 0; // normal を固定抽選
+  const ep = createEnemySystem();
+  const easy = spawnEnemy(ep, 1, 16, 0, 1);
+  const hard = spawnEnemy(ep, 1, 16, 0, 5);
+  Math.random = originalRandom;
+  ok('高難易度ほど敵HPが高い', hard.maxHp > easy.maxHp);
+  ok('高難易度ほど突破ダメージが重い', hard.breach > easy.breach);
+}
+
 console.log(`\n結果: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -8,7 +8,7 @@
 //   operator==='weapon' のとき weapon(銃 id) を適用し value は使わない。
 // =============================================================================
 
-import { CONFIG } from './config.js';
+import { CONFIG, getDifficultyConfig } from './config.js';
 import { ObjectPool } from './pool.js';
 
 export function createGateSystem() {
@@ -41,6 +41,7 @@ export function createGateSystem() {
 }
 
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+const scaled = (value, mul) => Math.max(1, Math.round(value * mul));
 
 /** 左右に異なる銃を提示する武器選択ゲートのペアを返す。 */
 function rollWeaponOptions() {
@@ -60,30 +61,40 @@ function rollWeaponOptions() {
  * 片方を「強い加算/乗算」、もう片方を「弱い/デバフ」にして選択を意味のあるものにする。
  * bothBuff=true のときは両方を強化ゲートにする(序盤の確実な強化用)。
  */
-function rollGateOptions(wave, bothBuff) {
+function rollGateOptions(wave, bothBuff, difficulty = CONFIG.difficulties.defaultLevel) {
+  const d = getDifficultyConfig(difficulty);
   // 武器選択ゲート(序盤の確実強化ペアでは出さない)
-  if (!bothBuff && Math.random() < CONFIG.gates.weaponChance) {
+  if (!bothBuff && Math.random() < CONFIG.gates.weaponChance * d.weaponChanceMul) {
     return rollWeaponOptions();
   }
 
   const goodPool = [
     { operator: 'multiply', value: 2 },
-    { operator: 'multiply', value: 3 },
-    { operator: 'add', value: 5 + wave * 2 },
-    { operator: 'add', value: 10 + wave * 3 },
+    { operator: 'add', value: scaled(4 + wave * 1.5, d.gateGoodValueMul) },
+    { operator: 'add', value: scaled(8 + wave * 2, d.gateGoodValueMul) },
   ];
+  if (difficulty <= 2) goodPool.push({ operator: 'multiply', value: 3 });
+
   const badPool = [
     { operator: 'divide', value: 2 },
-    { operator: 'subtract', value: 5 + wave },
-    { operator: 'add', value: 2 },
+    { operator: 'subtract', value: scaled(4 + wave, d.gateBadValueMul) },
+    { operator: 'subtract', value: scaled(8 + wave * 1.5, d.gateBadValueMul) },
+  ];
+  if (difficulty >= 4) badPool.push({ operator: 'divide', value: 3 });
+
+  const neutralPool = [
+    { operator: 'add', value: scaled(2 + wave * 0.5, d.gateGoodValueMul) },
     { operator: 'multiply', value: 1 },
   ];
+
   const good = pick(goodPool);
   if (bothBuff) {
     return [good, pick(goodPool)];
   }
-  // 60% は「良い vs 悪い」、40% は「良い vs 別の良い」で構成
-  const other = Math.random() < 0.6 ? pick(badPool) : pick(goodPool);
+  if (Math.random() < d.gateGoodPairChance) {
+    return Math.random() < 0.5 ? [good, pick(goodPool)] : [pick(goodPool), good];
+  }
+  const other = Math.random() < d.gatePenaltyChance ? pick(badPool) : pick(neutralPool);
   // 左右どちらに良い方を置くかランダム化
   return Math.random() < 0.5 ? [good, other] : [other, good];
 }
@@ -93,9 +104,11 @@ function rollGateOptions(wave, bothBuff) {
  * @param {object} [opts]
  * @param {number} [opts.z]        出現 z(省略時は world.spawnZ)
  * @param {boolean} [opts.bothBuff] 両方を強化ゲートにする
+ * @param {number} [opts.difficulty] 難易度(1-5)
  */
 export function spawnGatePair(pool, wave, scrollSpeed, opts = {}) {
-  const [left, right] = rollGateOptions(wave, opts.bothBuff);
+  const difficulty = opts.difficulty ?? CONFIG.difficulties.defaultLevel;
+  const [left, right] = rollGateOptions(wave, opts.bothBuff, difficulty);
   const off = CONFIG.gates.pairOffsetX;
   const z = typeof opts.z === 'number' ? opts.z : CONFIG.world.spawnZ;
   pool.acquire({ x: -off, z, operator: left.operator, value: left.value, weapon: left.weapon, speed: scrollSpeed });

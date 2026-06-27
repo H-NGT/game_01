@@ -6,7 +6,7 @@
 //  変わる。描画契約: enemy は { id, x, y, z, hp, maxHp, kind, radius } を持つ。
 // =============================================================================
 
-import { CONFIG } from './config.js';
+import { CONFIG, getDifficultyConfig } from './config.js';
 import { ObjectPool } from './pool.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -39,9 +39,10 @@ export function createEnemySystem() {
 }
 
 /** wave に応じたタイプ別出現重みから 1 タイプを抽選する。 */
-export function rollEnemyType(wave) {
+export function rollEnemyType(wave, difficulty = CONFIG.difficulties.defaultLevel) {
   const { types, spawnWeights } = CONFIG.enemies;
-  const w = wave - 1;
+  const d = getDifficultyConfig(difficulty);
+  const w = Math.max(0, wave - 1 + d.weightWaveBonus);
   const keys = Object.keys(types);
   let total = 0;
   const weights = keys.map((k) => {
@@ -61,26 +62,28 @@ export function rollEnemyType(wave) {
 }
 
 /** wave に応じた 1 スポーンあたりの同時出現数(密度)。 */
-export function burstCount(wave) {
+export function burstCount(wave, difficulty = CONFIG.difficulties.defaultLevel) {
   const { burstBase, burstPerWave, burstMax } = CONFIG.enemies;
-  return Math.min(burstMax, Math.floor(burstBase + (wave - 1) * burstPerWave));
+  const d = getDifficultyConfig(difficulty);
+  return Math.min(burstMax, Math.max(1, Math.floor(burstBase + (wave - 1) * burstPerWave) + d.burstBonus));
 }
 
 /** wave に応じたタイプの敵を、指定 x(省略時ランダム)に1体生成する。 */
-export function spawnEnemy(pool, wave, scrollSpeed, x) {
+export function spawnEnemy(pool, wave, scrollSpeed, x, difficulty = CONFIG.difficulties.defaultLevel) {
+  const d = getDifficultyConfig(difficulty);
   const half = CONFIG.lane.halfWidth;
   const px = typeof x === 'number' ? x : (Math.random() * 2 - 1) * half;
-  const kind = rollEnemyType(wave);
+  const kind = rollEnemyType(wave, difficulty);
   const def = CONFIG.enemies.types[kind];
   const baseHp = CONFIG.enemies.baseHp + (wave - 1) * CONFIG.enemies.hpPerWave;
   return pool.acquire({
     x: clamp(px, -half, half),
     z: CONFIG.world.spawnZ,
-    hp: Math.max(1, Math.ceil(baseHp * def.hpMul)),
-    speed: scrollSpeed * def.speedMul,
+    hp: Math.max(1, Math.ceil(baseHp * def.hpMul * d.enemyHpMul)),
+    speed: scrollSpeed * def.speedMul * d.enemySpeedMul,
     kind,
     radius: CONFIG.enemies.radius * def.radiusMul,
-    breach: def.breach,
+    breach: Math.max(CONFIG.enemies.breachDamageMin, Math.ceil(def.breach * d.breachMul)),
     weave: def.weave,
     baseX: clamp(px, -half, half),
     phase: Math.random() * Math.PI * 2,

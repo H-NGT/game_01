@@ -39,21 +39,21 @@ export const CONFIG = {
   },
 
   bullets: {
-    poolSize: 512,
+    poolSize: 768,
     radius: 0.3,
     speed: 70, // 弾速 (units/s)
     despawnZ: -90, // これより奥へ進んだら回収
   },
 
   enemies: {
-    poolSize: 256,
+    poolSize: 512,
     radius: 1.2, // 標準サイズの衝突半径(タイプで radiusMul 倍される)
-    baseHp: 6, // wave1 の基本HP(固く)
-    hpPerWave: 4, // wave ごとのHP増加(固く)
-    baseSpawnIntervalSec: 0.7, // 出現間隔(基本)
-    minSpawnIntervalSec: 0.2,
-    spawnIntervalPerWave: 0.05, // wave ごとに間隔短縮
-    firstSpawnDelaySec: 1.2, // 開始直後の短い猶予(スタート強化ゲートを取る時間)
+    baseHp: 8, // wave1 の基本HP
+    hpPerWave: 5, // wave ごとのHP増加
+    baseSpawnIntervalSec: 0.52, // 出現間隔(基本)
+    minSpawnIntervalSec: 0.12,
+    spawnIntervalPerWave: 0.045, // wave ごとに間隔短縮
+    firstSpawnDelaySec: 0.95, // 開始直後の短い猶予(スタート強化ゲートを取る時間)
     breachDamageMin: 1, // 突破された敵が与える value ダメージの最小値
     weaveFreq: 2.6, // weaver 系の横揺れ角速度 (rad/s)
 
@@ -76,8 +76,8 @@ export const CONFIG = {
     },
     // wave に応じて 1 回のスポーンで複数体まとめて出す(密度を上げる)。
     burstBase: 1,
-    burstPerWave: 0.18, // wave ごとに +0.18 体(切り捨て)
-    burstMax: 4,
+    burstPerWave: 0.24, // wave ごとに +0.24 体(切り捨て)
+    burstMax: 8,
   },
 
   gates: {
@@ -87,7 +87,90 @@ export const CONFIG = {
     spawnIntervalSec: 5, // ゲート出現間隔
     firstSpawnAtSec: 1.5, // 最初のゲートが出現するまでの時間
     starterZ: -22, // スタート時に近距離へ出す強化ゲートの出現位置(敵より先に到達)
-    weaponChance: 0.34, // このゲートペアを「武器選択ゲート(左右で別の銃)」にする確率
+    weaponChance: 0.28, // このゲートペアを「武器選択ゲート(左右で別の銃)」にする確率
+  },
+
+  difficulties: {
+    defaultLevel: 3,
+    minLevel: 1,
+    maxLevel: 5,
+    levels: {
+      1: {
+        label: 'EASY',
+        enemyIntervalMul: 1.35,
+        enemyHpMul: 0.75,
+        enemySpeedMul: 0.88,
+        breachMul: 0.75,
+        burstBonus: 0,
+        weightWaveBonus: -1,
+        gateGoodPairChance: 0.48,
+        gatePenaltyChance: 0.45,
+        gateGoodValueMul: 1.2,
+        gateBadValueMul: 0.75,
+        weaponChanceMul: 1.2,
+        starterBothBuff: true,
+      },
+      2: {
+        label: 'NORMAL',
+        enemyIntervalMul: 1.0,
+        enemyHpMul: 1.0,
+        enemySpeedMul: 0.98,
+        breachMul: 1.0,
+        burstBonus: 0,
+        weightWaveBonus: 0,
+        gateGoodPairChance: 0.28,
+        gatePenaltyChance: 0.62,
+        gateGoodValueMul: 1.0,
+        gateBadValueMul: 0.95,
+        weaponChanceMul: 1.0,
+        starterBothBuff: true,
+      },
+      3: {
+        label: 'HARD',
+        enemyIntervalMul: 0.74,
+        enemyHpMul: 1.25,
+        enemySpeedMul: 1.06,
+        breachMul: 1.25,
+        burstBonus: 1,
+        weightWaveBonus: 2,
+        gateGoodPairChance: 0.16,
+        gatePenaltyChance: 0.74,
+        gateGoodValueMul: 0.82,
+        gateBadValueMul: 1.15,
+        weaponChanceMul: 0.9,
+        starterBothBuff: true,
+      },
+      4: {
+        label: 'EXPERT',
+        enemyIntervalMul: 0.58,
+        enemyHpMul: 1.6,
+        enemySpeedMul: 1.15,
+        breachMul: 1.5,
+        burstBonus: 2,
+        weightWaveBonus: 4,
+        gateGoodPairChance: 0.08,
+        gatePenaltyChance: 0.84,
+        gateGoodValueMul: 0.7,
+        gateBadValueMul: 1.35,
+        weaponChanceMul: 0.75,
+        starterBothBuff: false,
+      },
+      5: {
+        label: 'NIGHTMARE',
+        enemyIntervalMul: 0.44,
+        enemyHpMul: 2.05,
+        enemySpeedMul: 1.25,
+        breachMul: 1.85,
+        burstBonus: 3,
+        weightWaveBonus: 6,
+        gateGoodPairChance: 0.03,
+        gatePenaltyChance: 0.92,
+        gateGoodValueMul: 0.58,
+        gateBadValueMul: 1.6,
+        weaponChanceMul: 0.6,
+        starterBothBuff: false,
+      },
+    },
   },
 
   scoring: {
@@ -157,3 +240,14 @@ export const CONFIG = {
     },
   },
 };
+
+export function normalizeDifficultyLevel(level) {
+  const numeric = Number(level);
+  const raw = Number.isFinite(numeric) ? Math.round(numeric) : CONFIG.difficulties.defaultLevel;
+  return Math.min(CONFIG.difficulties.maxLevel, Math.max(CONFIG.difficulties.minLevel, raw));
+}
+
+export function getDifficultyConfig(level) {
+  const normalized = normalizeDifficultyLevel(level);
+  return CONFIG.difficulties.levels[normalized] || CONFIG.difficulties.levels[CONFIG.difficulties.defaultLevel];
+}
