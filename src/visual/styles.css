@@ -1,0 +1,312 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --cyan: #56d8ff;
+  --green: #70f6a3;
+  --pink: #ff5da8;
+  --amber: #ffd166;
+  --ink: #071019;
+  --panel: rgba(6, 18, 28, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.16);
+  background: #071019;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  background: #071019;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-shell {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  min-height: 520px;
+  overflow: hidden;
+  color: #f6fbff;
+  overscroll-behavior: none;
+  touch-action: none;
+  background:
+    radial-gradient(circle at 48% 15%, rgba(86, 216, 255, 0.13), transparent 38%),
+    linear-gradient(180deg, #0b1d2b 0%, #071019 54%, #03070c 100%);
+}
+
+.scene-host {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.scene-host canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.hud {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(110px, 1.2fr) minmax(84px, 1fr);
+  gap: 10px;
+  pointer-events: none;
+}
+
+.hud__cluster {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.hud__cluster--center {
+  text-align: center;
+}
+
+.hud__cluster:last-child {
+  text-align: right;
+}
+
+.hud__label,
+.hud__value {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.hud__label {
+  color: rgba(246, 251, 255, 0.66);
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.hud__value {
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: clamp(1.25rem, 2.6vw, 2rem);
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  transform: translateY(10px);
+  touch-action: none;
+}
+
+.overlay::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(3, 9, 16, 0.3), rgba(3, 9, 16, 0.84)),
+    radial-gradient(circle at center, rgba(86, 216, 255, 0.12) 0%, rgba(0, 0, 0, 0.5) 72%);
+}
+
+.overlay--active {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overlay__panel {
+  position: relative;
+  width: min(420px, calc(100vw - 36px));
+  padding: 28px 26px 26px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(14, 33, 47, 0.92), rgba(4, 13, 22, 0.84)),
+    rgba(5, 16, 25, 0.86);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.overlay__panel--clear {
+  border-color: rgba(112, 246, 163, 0.38);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.48),
+    0 0 44px rgba(112, 246, 163, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.overlay__kicker,
+.overlay__copy,
+.overlay__score {
+  margin: 0;
+}
+
+.overlay__kicker {
+  color: var(--cyan);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+h1,
+h2 {
+  margin: 8px 0 10px;
+  color: #ffffff;
+  font-size: clamp(2.2rem, 8vw, 4.6rem);
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+h2 {
+  font-size: clamp(2rem, 7vw, 3.7rem);
+}
+
+.overlay__copy {
+  color: rgba(246, 251, 255, 0.74);
+  font-size: 1rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.overlay__score {
+  color: rgba(246, 251, 255, 0.82);
+  font-size: clamp(1.35rem, 5vw, 1.9rem);
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.primary-button {
+  width: min(250px, 100%);
+  min-height: 56px;
+  margin: 24px auto 0;
+  border: 0;
+  border-radius: 8px;
+  color: #031016;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  box-shadow:
+    0 14px 34px rgba(86, 216, 255, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  font-weight: 950;
+  letter-spacing: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease;
+}
+
+.primary-button:active {
+  transform: translateY(2px) scale(0.99);
+  filter: brightness(0.96);
+}
+
+.primary-button--retry {
+  min-height: 60px;
+  font-size: 1.08rem;
+}
+
+.primary-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  .game-shell {
+    min-height: 100dvh;
+  }
+
+  .hud {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .hud__cluster {
+    padding: 8px;
+  }
+
+  .hud__label {
+    font-size: 0.58rem;
+  }
+
+  .hud__value {
+    font-size: clamp(1.04rem, 5vw, 1.45rem);
+  }
+
+  .overlay {
+    align-items: end;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .overlay__panel {
+    width: calc(100vw - 36px);
+    max-width: 390px;
+    padding: 24px 18px 20px;
+  }
+
+  .overlay__copy {
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .primary-button {
+    width: min(280px, calc(100% - 20px));
+    min-height: 58px;
+  }
+
+  .primary-button--retry {
+    min-height: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    transition: none;
+  }
+}

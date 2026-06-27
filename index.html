@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja" class="is-game-document">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Number Gate Runner</title>
+    <link rel="stylesheet" href="./src/visual/styles.css?v=mobile-final-2" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./src/vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- CODEX_START: VISUAL_AND_UI -->
+    <main class="game-shell" aria-label="Number Gate Runner">
+      <div id="gameCanvas" class="scene-host" aria-hidden="true"></div>
+
+      <section class="hud" aria-label="ゲーム情報">
+        <div class="hud__cluster">
+          <p class="hud__label">POWER</p>
+          <p id="playerPower" class="hud__value">1</p>
+        </div>
+        <div class="hud__cluster hud__cluster--center">
+          <p class="hud__label">SCORE</p>
+          <p id="scoreValue" class="hud__value">0</p>
+        </div>
+        <div class="hud__cluster">
+          <p class="hud__label">WAVE</p>
+          <p id="waveValue" class="hud__value">1</p>
+        </div>
+      </section>
+
+      <section id="startOverlay" class="overlay overlay--active" aria-live="polite">
+        <div class="overlay__panel">
+          <p class="overlay__kicker">3D RUNNER</p>
+          <h1>Number Gate</h1>
+          <p class="overlay__copy">左右のゲートで弾数を増やし、正面の敵を削り切るランナーゲーム。</p>
+          <button id="startButton" class="primary-button" type="button">START</button>
+        </div>
+      </section>
+
+      <section id="gameOverOverlay" class="overlay" aria-live="polite">
+        <div class="overlay__panel">
+          <p class="overlay__kicker">RESULT</p>
+          <h2>Game Over</h2>
+          <p id="finalScore" class="overlay__score">Score 0</p>
+          <button id="restartButton" class="primary-button primary-button--retry" type="button">
+            RETRY
+          </button>
+        </div>
+      </section>
+
+      <section id="clearOverlay" class="overlay" aria-live="polite">
+        <div class="overlay__panel overlay__panel--clear">
+          <p class="overlay__kicker">STAGE CLEAR</p>
+          <h2>Clear!</h2>
+          <p id="clearScore" class="overlay__score">Score 0</p>
+          <button id="clearRestartButton" class="primary-button primary-button--retry" type="button">
+            PLAY AGAIN
+          </button>
+        </div>
+      </section>
+    </main>
+    <!-- CODEX_END: VISUAL_AND_UI -->
+
+    <script type="module">
+      // コアロジック層を読み込む。副作用 import により window.gameState /
+      // window.GameAPI を生成し、visual:start-requested / restart-requested を
+      // 購読、入力接続とロジックループを開始する。VisualController より先に
+      // 評価され、描画開始時点で window.gameState の存在を保証する。
+      import './src/core/index.js';
+      import { VisualController } from './src/visual/visual.js?v=mobile-final-2';
+
+      const visual = new VisualController({
+        mount: document.querySelector('#gameCanvas'),
+        hud: {
+          power: document.querySelector('#playerPower'),
+          score: document.querySelector('#scoreValue'),
+          wave: document.querySelector('#waveValue'),
+          startOverlay: document.querySelector('#startOverlay'),
+          gameOverOverlay: document.querySelector('#gameOverOverlay'),
+          clearOverlay: document.querySelector('#clearOverlay'),
+          finalScore: document.querySelector('#finalScore'),
+          clearScore: document.querySelector('#clearScore')
+        }
+      });
+
+      visual.start();
+      installTouchLock(document.querySelector('.game-shell'));
+
+      const previewMode = new URLSearchParams(window.location.search).get('preview');
+      if (previewMode === 'play') {
+        visual.requestPreviewStart();
+      } else if (previewMode === 'gameover' || previewMode === 'clear') {
+        visual.requestPreviewStatus(previewMode);
+      }
+
+      const emitGameRequest = (type) => {
+        window.dispatchEvent(new CustomEvent(type));
+        if (typeof window.startGame === 'function') window.startGame();
+      };
+
+      document.querySelector('#startButton').addEventListener('click', () => {
+        visual.requestPreviewStart();
+        emitGameRequest('visual:start-requested');
+      });
+
+      document.querySelector('#restartButton').addEventListener('click', () => {
+        visual.requestPreviewRestart();
+        emitGameRequest('visual:restart-requested');
+      });
+
+      document.querySelector('#clearRestartButton').addEventListener('click', () => {
+        visual.requestPreviewRestart();
+        emitGameRequest('visual:restart-requested');
+      });
+
+      function installTouchLock(root) {
+        if (!root) return;
+
+        const preventPageGesture = (event) => {
+          if (event.cancelable) event.preventDefault();
+        };
+
+        const preventMultiTouch = (event) => {
+          if (event.touches && event.touches.length > 1 && event.cancelable) {
+            event.preventDefault();
+          }
+        };
+
+        document.addEventListener('touchstart', preventMultiTouch, { passive: false });
+        document.addEventListener('touchmove', preventPageGesture, { passive: false });
+        document.addEventListener('gesturestart', preventPageGesture, { passive: false });
+        document.addEventListener('gesturechange', preventPageGesture, { passive: false });
+        root.addEventListener('contextmenu', preventPageGesture);
+      }
+    </script>
+  </body>
+</html>

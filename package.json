@@ -1,0 +1,11 @@
+{
+  "name": "game_01",
+  "version": "0.1.0",
+  "description": "Number gate runner - core logic layer",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node tests/smoke.mjs",
+    "serve": "python3 -m http.server 5173"
+  }
+}
