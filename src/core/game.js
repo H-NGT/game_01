@@ -15,7 +15,7 @@ import { CONFIG } from './config.js';
 import { ObjectPool } from './pool.js';
 import { createPlayer, updatePlayer, recomputeStats } from './player.js';
 import { createBulletSystem, firePlayer, updateBullets } from './bullets.js';
-import { createEnemySystem, spawnEnemy, updateEnemies } from './enemies.js';
+import { createEnemySystem, spawnEnemy, updateEnemies, burstCount } from './enemies.js';
 import { createGateSystem, spawnGatePair, updateGates } from './gates.js';
 import { resolveBulletEnemy, resolvePlayerGate, resolvePlayerEnemy } from './collision.js';
 import { InputController } from './input.js';
@@ -86,6 +86,7 @@ export class Game {
     p.value = CONFIG.player.startValue;
     p.fireTimer = 0;
     p.fireRate = CONFIG.player.baseFireRate;
+    p.weapon = CONFIG.weapons.startWeapon;
     recomputeStats(p);
 
     this.input.reset();
@@ -185,7 +186,7 @@ export class Game {
     let volleys = 0;
     while (this.player.fireTimer >= interval && volleys < 8) {
       this.player.fireTimer -= interval;
-      firePlayer(this.bulletPool, this.player);
+      firePlayer(this.bulletPool, this.player, this.enemyPool);
       volleys++;
     }
     updateBullets(this.bulletPool, dt);
@@ -199,7 +200,9 @@ export class Game {
       this._enemyTimer += dt;
       while (this._enemyTimer >= enemyInterval) {
         this._enemyTimer -= enemyInterval;
-        spawnEnemy(this.enemyPool, s.wave, s.scrollSpeed);
+        // wave が上がると 1 回のスポーンで複数体まとめて出す(密度を上げる)。
+        const burst = burstCount(s.wave);
+        for (let k = 0; k < burst; k++) spawnEnemy(this.enemyPool, s.wave, s.scrollSpeed);
       }
     }
     updateEnemies(this.enemyPool, dt);

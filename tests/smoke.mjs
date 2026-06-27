@@ -2,7 +2,10 @@
 // window/requestAnimationFrame に依存せず game.update(dt) を直接回す。
 import { Game } from '../src/core/game.js';
 import { ObjectPool } from '../src/core/pool.js';
-import { createPlayer, applyOperator, recomputeStats } from '../src/core/player.js';
+import { createPlayer, applyOperator, recomputeStats, setWeapon, cycleWeapon } from '../src/core/player.js';
+import { createBulletSystem, firePlayer, pickAimTarget } from '../src/core/bullets.js';
+import { createEnemySystem, spawnEnemy, rollEnemyType, burstCount } from '../src/core/enemies.js';
+import { resolveBulletEnemy, resolvePlayerEnemy } from '../src/core/collision.js';
 
 let pass = 0;
 let fail = 0;
@@ -142,10 +145,11 @@ function ok(name, cond) {
 {
   const g = new Game();
   g.start();
-  g.player.value = 2;
+  g.player.value = 1;
   recomputeStats(g.player);
-  // 防衛ラインを越えた位置に強敵を直接配置(接触/通過の統合判定)
-  g.enemyPool.acquire({ x: 0, z: g.player.z + 0.5, hp: 50, speed: 0 });
+  // 防衛ラインを越えた位置に敵を直接配置。突破ダメージは残HPでなく固定値(breach)。
+  // HP が高くても breach=1 しか奪わない(残HP非依存)が、value=1 なので 0 で GO。
+  g.enemyPool.acquire({ x: 0, z: g.player.z + 0.5, hp: 50, speed: 0, breach: 1 });
   g.update(1 / 60);
   ok('ライン突破でゲームオーバー', g.state.status === 'gameover');
   ok('突破で value が枯渇', g.player.value <= 0);
@@ -162,6 +166,144 @@ function ok(name, cond) {
     if (firstSpawn === null && g.state.enemies.length > 0) firstSpawn = g.state.time;
   }
   ok('敵が約1.5秒以内に出現', firstSpawn !== null && firstSpawn <= 1.6);
+}
+
+// --- 9. 武器の切替 ----------------------------------------------------------
+{
+  const p = createPlayer();
+  ok('初期武器は rifle', p.weapon === 'rifle');
+  setWeapon(p, 'bazooka');
+  ok('setWeapon で武器を切替', p.weapon === 'bazooka');
+  setWeapon(p, 'unknown-gun');
+  ok('未知の武器 id は無視される', p.weapon === 'bazooka');
+  cycleWeapon(p); // list順: rifle,machinegun,bazooka,rocket → bazooka の次は rocket
+  ok('cycleWeapon で次の武器へ巡回', p.weapon === 'rocket');
+}
+
+// --- 10. 武器ゲート通過で銃が切り替わる -------------------------------------
+{
+  const g = new Game();
+  g.start();
+  g.gatePool.releaseAll();
+  g.player.x = 0;
+  g.player.weapon = 'rifle';
+  const v0 = g.player.value;
+  // 自機のすぐ奥に武器ゲートを直接配置
+  g.gatePool.acquire({ x: 0, z: g.player.z - 5, operator: 'weapon', weapon: 'bazooka', speed: g.state.scrollSpeed });
+  for (let i = 0; i < 60 && g.state.status === 'playing'; i++) {
+    g.input.targetX = 0;
+    g.update(1 / 60);
+  }
+  ok('武器ゲート通過で銃が切り替わる', g.player.weapon === 'bazooka');
+  ok('武器ゲートは value を変えない', g.player.value === v0);
+}
+
+// --- 11. 貫通弾(pierce)は複数の敵を撃ち抜く ---------------------------------
+{
+  const bp = createBulletSystem();
+  const ep = createEnemySystem();
+  // 同一地点に弱い敵2体。貫通2の弾(power10)で両方倒せて弾は残るはず。
+  ep.acquire({ x: 0, z: -10, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
+  ep.acquire({ x: 0, z: -10, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
+  const b = bp.acquire({ x: 0, y: 0, z: -10, vx: 0, vz: 0, power: 10, kind: 'rifle', radius: 0.3, pierce: 2, splash: 0 });
+  let killed = 0;
+  const ctx = { emit: (e) => { if (e.type === 'enemyKilled') killed++; }, addScore: () => {} };
+  resolveBulletEnemy(bp, ep, ctx);
+  ok('貫通弾が複数の敵を撃破', killed === 2);
+  ok('貫通上限内なら弾は残る', b.active === true);
+}
+
+// --- 12. 爆風弾(splash)は範囲内の敵を巻き込む -------------------------------
+{
+  const bp = createBulletSystem();
+  const ep = createEnemySystem();
+  ep.acquire({ x: 0, z: -10, hp: 5, speed: 0, kind: 'normal', radius: 1.2 }); // 直撃
+  ep.acquire({ x: 1, z: -10, hp: 5, speed: 0, kind: 'normal', radius: 1.2 }); // 爆風圏内
+  ep.acquire({ x: 10, z: -10, hp: 5, speed: 0, kind: 'normal', radius: 1.2 }); // 圏外
+  const b = bp.acquire({ x: 0, y: 0, z: -10, vx: 0, vz: 0, power: 10, kind: 'bazooka', radius: 0.5, pierce: 0, splash: 3.4 });
+  let killed = 0;
+  const ctx = { emit: (e) => { if (e.type === 'enemyKilled') killed++; }, addScore: () => {} };
+  resolveBulletEnemy(bp, ep, ctx);
+  ok('爆風が直撃+範囲内の敵を撃破', killed === 2);
+  ok('爆風は射程外の敵に届かない', ep.items.filter((e) => e.active && e.x === 10).length === 1);
+  ok('爆風弾は着弾で消滅(貫通なし)', b.active === false);
+}
+
+// --- 13. 敵タイプ: 抽選と密度・固さ ------------------------------------------
+{
+  const known = ['normal', 'tank', 'rusher', 'weaver'];
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) seen.add(rollEnemyType(5));
+  ok('rollEnemyType は既知タイプのみ返す', [...seen].every((t) => known.includes(t)));
+  ok('wave が上がると同時出現数が増える', burstCount(1) >= 1 && burstCount(20) > burstCount(1));
+
+  const ep = createEnemySystem();
+  let tankHp = 0;
+  let normalHp = 0;
+  for (let i = 0; i < 500 && (!tankHp || !normalHp); i++) {
+    const e = spawnEnemy(ep, 1, 16);
+    if (e.kind === 'tank' && !tankHp) tankHp = e.maxHp;
+    if (e.kind === 'normal' && !normalHp) normalHp = e.maxHp;
+    ep.release(e);
+  }
+  ok('tank は normal より固い', tankHp > normalHp);
+}
+
+// --- 14. オートエイム: 移動方向の敵を優先し、その方向へ撃つ -----------------
+{
+  const player = createPlayer();
+  player.x = 0;
+  const ep = createEnemySystem();
+  const right = ep.acquire({ x: 3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
+  const left = ep.acquire({ x: -3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
+  player.moveDir = 1;
+  ok('移動方向(右)側の敵を優先して狙う', pickAimTarget(player, ep) === right);
+  player.moveDir = -1;
+  ok('移動方向(左)側の敵を優先して狙う', pickAimTarget(player, ep) === left);
+  player.moveDir = 0;
+  ok('停止中でもいずれかの敵を狙う', pickAimTarget(player, ep) !== null);
+
+  // 右の敵だけ残し、発射方向が右(vx>0)へ向くか
+  ep.release(left);
+  const bp = createBulletSystem();
+  player.weapon = 'rifle';
+  recomputeStats(player);
+  firePlayer(bp, player, ep);
+  const fired = bp.items.filter((b) => b.active);
+  ok('オートエイムで右の敵へ vx>0 の弾が出る', fired.length > 0 && fired.every((b) => b.vx > 0));
+  ok('発射時に aimTargetId が設定される', player.aimTargetId === right.id);
+}
+
+// --- 15. 狙う敵がいなければ正面へ撃つ ---------------------------------------
+{
+  const player = createPlayer();
+  player.x = 0;
+  player.weapon = 'rifle';
+  recomputeStats(player);
+  const ep = createEnemySystem(); // 空(敵なし)
+  const bp = createBulletSystem();
+  firePlayer(bp, player, ep);
+  const fired = bp.items.filter((b) => b.active);
+  ok('敵不在なら正面(vx≈0, vz<0)へ撃つ', fired.length > 0 && Math.abs(fired[0].vx) < 1e-6 && fired[0].vz < 0);
+  ok('敵不在なら aimTargetId は null', player.aimTargetId === null);
+}
+
+// --- 16. 突破ダメージは残HP非依存の固定値(breach) --------------------------
+{
+  const player = createPlayer();
+  player.value = 1000;
+  recomputeStats(player);
+  player.x = 0;
+  const ep = createEnemySystem();
+  const dmgs = [];
+  const ctx = { emit: (e) => { if (e.type === 'playerHit') dmgs.push(e.damage); }, addScore: () => {} };
+  // 同 breach で残HPが大きく違う2体を突破させ、奪われる value が等しいことを確認
+  ep.acquire({ x: 0, z: player.z + 0.5, hp: 5, speed: 0, kind: 'tank', radius: 1.2, breach: 4 });
+  resolvePlayerEnemy(player, ep, ctx);
+  ep.acquire({ x: 0, z: player.z + 0.5, hp: 999, speed: 0, kind: 'tank', radius: 1.2, breach: 4 });
+  resolvePlayerEnemy(player, ep, ctx);
+  ok('突破ダメージは breach 固定(残HP5→4)', dmgs[0] === 4);
+  ok('高HP(999)でも突破ダメージは同じ(=4)', dmgs[1] === 4);
 }
 
 console.log(`\n結果: ${pass} passed, ${fail} failed`);

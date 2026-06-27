@@ -11,34 +11,70 @@
 // =============================================================================
 
 import { CONFIG } from './config.js';
-import { applyOperator, damagePlayer } from './player.js';
+import { applyOperator, damagePlayer, setWeapon } from './player.js';
 
-/** 弾と敵の衝突を解決する。 */
+/** 敵に dmg を与え、撃破ならスコア加算・イベント発火・回収する。撃破で true。 */
+function damageEnemy(e, dmg, enemyPool, ctx) {
+  e.hp -= dmg;
+  if (e.hp <= 0) {
+    ctx.addScore(Math.max(CONFIG.scoring.killBase, e.maxHp));
+    ctx.emit({ type: 'enemyKilled', x: e.x, y: e.y, z: e.z, kind: e.kind });
+    enemyPool.release(e);
+    return true;
+  }
+  return false;
+}
+
+/** 着弾点(cx,cz)を中心に radius 内の敵へ距離減衰ダメージを与える(直撃敵は除外)。 */
+function applySplash(enemyPool, cx, cz, radius, power, origin, ctx) {
+  const enemies = enemyPool.items;
+  const r2 = radius * radius;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.active || e === origin) continue;
+    const dx = e.x - cx;
+    const dz = e.z - cz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 > r2) continue;
+    const dmg = Math.max(1, Math.round(power * (1 - Math.sqrt(d2) / radius)));
+    damageEnemy(e, dmg, enemyPool, ctx);
+  }
+}
+
+/**
+ * 弾と敵の衝突を解決する。
+ *  - 命中で威力分のダメージ。撃破でスコア加算。
+ *  - splash>0(バズーカ/ロケラン)なら着弾点周囲にも距離減衰ダメージ(爆風)。
+ *  - pierce>0(ライフル)なら上限体数まで貫通し続ける。
+ */
 export function resolveBulletEnemy(bulletPool, enemyPool, ctx) {
   const enemies = enemyPool.items;
   const bullets = bulletPool.items;
-  const rBE = CONFIG.bullets.radius + CONFIG.enemies.radius;
-  const rBE2 = rBE * rBE;
 
-  for (let i = 0; i < enemies.length; i++) {
-    const e = enemies[i];
-    if (!e.active) continue;
-    for (let j = 0; j < bullets.length; j++) {
-      const b = bullets[j];
-      if (!b.active) continue;
+  for (let j = 0; j < bullets.length; j++) {
+    const b = bullets[j];
+    if (!b.active) continue;
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (!e.active) continue;
+      const rr = b.radius + e.radius;
       const dx = e.x - b.x;
       const dz = e.z - b.z;
-      if (dx * dx + dz * dz > rBE2) continue;
+      if (dx * dx + dz * dz > rr * rr) continue;
 
-      e.hp -= b.power;
-      bulletPool.release(b);
-      ctx.emit({ type: 'hit', x: e.x, y: e.y, z: e.z });
+      ctx.emit({ type: 'hit', x: e.x, y: e.y, z: e.z, kind: b.kind });
+      damageEnemy(e, b.power, enemyPool, ctx);
 
-      if (e.hp <= 0) {
-        ctx.addScore(Math.max(CONFIG.scoring.killBase, e.maxHp));
-        ctx.emit({ type: 'enemyKilled', x: e.x, y: e.y, z: e.z });
-        enemyPool.release(e);
-        break; // この敵は消滅したので次の敵へ
+      if (b.splash > 0) {
+        applySplash(enemyPool, b.x, b.z, b.splash, b.power, e, ctx);
+        ctx.emit({ type: 'explosion', x: b.x, y: b.y, z: b.z, radius: b.splash, kind: b.kind });
+      }
+
+      // 貫通カウント。上限を超えたら弾を消す(爆風弾は pierce=0 なので即消滅)。
+      b.hits += 1;
+      if (b.hits > b.pierce) {
+        bulletPool.release(b);
+        break;
       }
     }
   }
@@ -67,8 +103,13 @@ export function resolvePlayerGate(player, gatePool, ctx) {
   }
 
   if (chosen) {
-    const newValue = applyOperator(player, chosen.operator, chosen.value);
-    ctx.emit({ type: 'gate', x: chosen.x, y: chosen.y, z: chosen.z, operator: chosen.operator, value: chosen.value, result: newValue });
+    if (chosen.operator === 'weapon') {
+      const w = setWeapon(player, chosen.weapon);
+      ctx.emit({ type: 'gate', x: chosen.x, y: chosen.y, z: chosen.z, operator: 'weapon', weapon: w });
+    } else {
+      const newValue = applyOperator(player, chosen.operator, chosen.value);
+      ctx.emit({ type: 'gate', x: chosen.x, y: chosen.y, z: chosen.z, operator: chosen.operator, value: chosen.value, result: newValue });
+    }
   }
 }
 
@@ -86,8 +127,8 @@ export function resolvePlayerEnemy(player, enemyPool, ctx) {
     if (!e.active) continue;
     if (e.z < player.z) continue; // まだライン手前
 
-    const contact = Math.abs(e.x - player.x) <= CONFIG.player.radius + CONFIG.enemies.radius;
-    const damage = Math.max(CONFIG.enemies.breachDamageMin, Math.ceil(e.hp));
+    const contact = Math.abs(e.x - player.x) <= CONFIG.player.radius + e.radius;
+    const damage = Math.max(CONFIG.enemies.breachDamageMin, e.breach || CONFIG.enemies.breachDamageMin);
     const survived = damagePlayer(player, damage);
     enemyPool.release(e);
     ctx.emit({ type: 'playerHit', x: e.x, y: e.y, z: player.z, damage, contact });

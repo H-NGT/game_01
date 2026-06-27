@@ -62,12 +62,17 @@ if (typeof window !== 'undefined') {
  *    .isPaused : boolean  // 一時停止中は true(描画は継続・ロジックは停止)
  *    .score    : number
  *    .wave     : number
- *    .player   : { id, x, y, z, value, shotCount, fireRate, bulletPower }
- *    .bullets  : Array<{ id, x, y, z, power }>            // 使用中のみ
- *    .enemies  : Array<{ id, x, y, z, hp, maxHp }>        // 使用中のみ
- *    .gates    : Array<{ id, x, y, z, operator, value }>  // 使用中のみ
+ *    .player   : { id, x, y, z, value, shotCount, fireRate, bulletPower, weapon }
+ *               weapon = 'rifle' | 'machinegun' | 'bazooka' | 'rocket' (現在の銃)
+ *    .bullets  : Array<{ id, x, y, z, power, kind, radius }>        // kind=銃id, radius=見た目/当たり
+ *    .enemies  : Array<{ id, x, y, z, hp, maxHp, kind, radius }>    // 使用中のみ
+ *               kind = 'normal' | 'tank' | 'rusher' | 'weaver' (敵タイプ。radius=サイズ)
+ *    .gates    : Array<{ id, x, y, z, operator, value, weapon }>   // 使用中のみ
+ *               operator='weapon' のとき weapon(銃id)を適用し value は使わない
  *    .events   : Array<{ type, x, y, z, ... }>            // 1フレーム分(エフェクト用)
- *               type = 'hit' | 'enemyKilled' | 'gate' | 'playerHit' | 'gameover'
+ *               type = 'hit' | 'enemyKilled' | 'gate' | 'playerHit' | 'explosion' | 'gameover'
+ *               hit/enemyKilled は kind を持つ。explosion は { radius, kind }(爆風用)。
+ *               gate は operator='weapon' のとき weapon を持つ。
  *
  *  ※ id は安定。id をキーに Mesh をマッピングし、配列から消えた id は隠す/破棄する。
  *

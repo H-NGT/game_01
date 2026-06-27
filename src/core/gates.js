@@ -2,9 +2,10 @@
 //  gates.js  —  計算ゲート(門)の生成・移動・選択
 // -----------------------------------------------------------------------------
 //  ゲートは左右ペアで出現し、プレイヤーは横移動でどちらかを「通過」して
-//  value を増減させる。奥(spawnZ)で生成され +z 方向へ流れる。
-//  描画契約: gate は { id, x, y, z, operator, value } を持つ。
-//   operator: 'add' | 'subtract' | 'multiply' | 'divide'
+//  value を増減させる(または銃を切り替える)。奥(spawnZ)で生成され +z へ流れる。
+//  描画契約: gate は { id, x, y, z, operator, value, weapon } を持つ。
+//   operator: 'add' | 'subtract' | 'multiply' | 'divide' | 'weapon'
+//   operator==='weapon' のとき weapon(銃 id) を適用し value は使わない。
 // =============================================================================
 
 import { CONFIG } from './config.js';
@@ -20,6 +21,7 @@ export function createGateSystem() {
       z: 0,
       operator: 'add',
       value: 1,
+      weapon: null, // operator==='weapon' のとき切り替える銃 id
       target: 'value',
       speed: 0,
       applied: false, // プレイヤー平面を通過済みか
@@ -29,7 +31,8 @@ export function createGateSystem() {
       g.y = 0;
       g.z = a.z;
       g.operator = a.operator;
-      g.value = a.value;
+      g.value = a.value ?? 0;
+      g.weapon = a.weapon ?? null;
       g.target = 'value';
       g.speed = a.speed;
       g.applied = false;
@@ -39,12 +42,30 @@ export function createGateSystem() {
 
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 
+/** 左右に異なる銃を提示する武器選択ゲートのペアを返す。 */
+function rollWeaponOptions() {
+  const ws = CONFIG.weapons.list;
+  const a = pick(ws);
+  let b = pick(ws);
+  while (b === a && ws.length > 1) b = pick(ws);
+  return [
+    { operator: 'weapon', weapon: a, value: 0 },
+    { operator: 'weapon', weapon: b, value: 0 },
+  ];
+}
+
 /**
  * wave に応じた左右ペアのゲート候補を生成する。
+ * 一定確率で「武器選択ゲート(左右で別の銃)」になる。それ以外は
  * 片方を「強い加算/乗算」、もう片方を「弱い/デバフ」にして選択を意味のあるものにする。
  * bothBuff=true のときは両方を強化ゲートにする(序盤の確実な強化用)。
  */
 function rollGateOptions(wave, bothBuff) {
+  // 武器選択ゲート(序盤の確実強化ペアでは出さない)
+  if (!bothBuff && Math.random() < CONFIG.gates.weaponChance) {
+    return rollWeaponOptions();
+  }
+
   const goodPool = [
     { operator: 'multiply', value: 2 },
     { operator: 'multiply', value: 3 },
@@ -77,8 +98,8 @@ export function spawnGatePair(pool, wave, scrollSpeed, opts = {}) {
   const [left, right] = rollGateOptions(wave, opts.bothBuff);
   const off = CONFIG.gates.pairOffsetX;
   const z = typeof opts.z === 'number' ? opts.z : CONFIG.world.spawnZ;
-  pool.acquire({ x: -off, z, operator: left.operator, value: left.value, speed: scrollSpeed });
-  pool.acquire({ x: off, z, operator: right.operator, value: right.value, speed: scrollSpeed });
+  pool.acquire({ x: -off, z, operator: left.operator, value: left.value, weapon: left.weapon, speed: scrollSpeed });
+  pool.acquire({ x: off, z, operator: right.operator, value: right.value, weapon: right.weapon, speed: scrollSpeed });
 }
 
 /** ゲートを手前へ移動させ、通り過ぎたものを回収する。 */

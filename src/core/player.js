@@ -21,11 +21,28 @@ export function createPlayer() {
     value: CONFIG.player.startValue, // 主数値(Codex 描画契約: player.value)
     shotCount: 1, // 同時発射数(value から導出)
     bulletPower: 1, // 1発の威力(value から導出)
-    fireRate: CONFIG.player.baseFireRate, // 連射速度(volleys/s)
+    fireRate: CONFIG.player.baseFireRate, // 連射速度(volleys/s, 武器倍率込み)
     fireTimer: 0, // 発射クールダウン蓄積
+    weapon: CONFIG.weapons.startWeapon, // 現在の銃(描画契約: player.weapon)
+    moveDir: 0, // 横移動方向(-1/0/1)。オートエイムの優先方向に使う
+    aimTargetId: null, // 現在オートエイムしている敵の id(描画契約: エイム線など)
   };
   recomputeStats(p);
   return p;
+}
+
+/** 銃を切り替える(未知 id は無視)。 */
+export function setWeapon(p, weapon) {
+  if (CONFIG.weapons.defs[weapon]) p.weapon = weapon;
+  return p.weapon;
+}
+
+/** 次の銃へ巡回切り替えする(デバッグ/手動切替用)。 */
+export function cycleWeapon(p) {
+  const list = CONFIG.weapons.list;
+  const i = list.indexOf(p.weapon);
+  p.weapon = list[(i + 1) % list.length];
+  return p.weapon;
 }
 
 /** value から派生ステータス(同時発射数・威力)を再計算する。 */
@@ -41,14 +58,20 @@ export function recomputeStats(p) {
 export function updatePlayer(p, input, dt, wave) {
   const half = CONFIG.lane.halfWidth;
   p.targetX = clamp(input.targetX, -half, half);
+  // 追従の残差から「今どちらへ動こうとしているか」を求める(オートエイムの優先方向)
+  const follow = p.targetX - p.x;
+  p.moveDir = Math.abs(follow) > CONFIG.player.aimMoveThreshold ? Math.sign(follow) : 0;
   // フレームレート非依存の指数追従
   const k = Math.min(1, CONFIG.player.moveResponse * dt);
-  p.x += (p.targetX - p.x) * k;
+  p.x += follow * k;
 
-  p.fireRate = Math.min(
+  const baseRate = Math.min(
     CONFIG.player.maxFireRate,
     CONFIG.player.baseFireRate + (wave - 1) * CONFIG.player.fireRatePerWave
   );
+  // 現在の銃の連射倍率を反映(マシンガンは速く、バズーカは遅く)。
+  const w = CONFIG.weapons.defs[p.weapon] || CONFIG.weapons.defs[CONFIG.weapons.startWeapon];
+  p.fireRate = baseRate * w.fireRateMul;
 }
 
 /** ゲートの演算子をプレイヤーの value へ適用する。 */
