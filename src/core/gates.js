@@ -73,7 +73,6 @@ function rollGateOptions(wave, bothBuff, difficulty = CONFIG.difficulties.defaul
     { operator: 'add', value: scaled(4 + wave * 1.5, d.gateGoodValueMul) },
     { operator: 'add', value: scaled(8 + wave * 2, d.gateGoodValueMul) },
   ];
-  if (difficulty <= 2) goodPool.push({ operator: 'multiply', value: 3 });
 
   const badPool = [
     { operator: 'divide', value: 2 },

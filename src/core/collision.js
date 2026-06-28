@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 //  ・弾 × 敵   : 敵HPを威力分減算。撃破でスコア加算。
 //  ・自機 × ゲート: 自機平面を通過したゲートの演算子を value に適用。
-//  ・自機 × 敵   : 接触で残HP分だけ value を減算(撃ち漏らしペナルティ)。
+//  ・自機 × 敵   : 防衛ライン突破で value を減算(撃ち漏らしペナルティ)。
 //
 //  ctx = { emit(event), addScore(n) } を介して上位(game.js)へ通知する。
 //  弾×敵は O(弾×敵) だが、実 active 数は小さい。必要なら z 方向の
@@ -116,8 +116,8 @@ export function resolvePlayerGate(player, gatePool, ctx) {
 /**
  * 自機の防衛ライン(z = player.z)を突破した敵を処理する。
  * 「接触」も「横へ避けられて倒し漏らした通過」も、ライン到達(z >= player.z)で
- * まとめて検出する。突破された敵は残HP分だけ value を奪い、value<=0 で
- * ゲームオーバー(false を返す)。
+ * まとめて検出する。突破された敵は breach / 残HP / 現在 value 割合の最大値を
+ * value から奪い、value<=0 でゲームオーバー(false を返す)。
  */
 export function resolvePlayerEnemy(player, enemyPool, ctx) {
   const enemies = enemyPool.items;
@@ -128,10 +128,14 @@ export function resolvePlayerEnemy(player, enemyPool, ctx) {
     if (e.z < player.z) continue; // まだライン手前
 
     const contact = Math.abs(e.x - player.x) <= CONFIG.player.radius + e.radius;
-    const damage = Math.max(CONFIG.enemies.breachDamageMin, e.breach || CONFIG.enemies.breachDamageMin);
+    const fixed = Math.max(CONFIG.enemies.breachDamageMin, e.breach || CONFIG.enemies.breachDamageMin);
+    const hpBased = Math.ceil(Math.max(0, e.hp) * CONFIG.enemies.breachHpDamageRate);
+    const valueRate = e.isBoss ? CONFIG.enemies.bossBreachValueDamageRate : CONFIG.enemies.breachValueDamageRate;
+    const valueBased = Math.ceil(player.value * valueRate);
+    const damage = Math.max(fixed, hpBased, valueBased);
     const survived = damagePlayer(player, damage);
     enemyPool.release(e);
-    ctx.emit({ type: 'playerHit', x: e.x, y: e.y, z: player.z, damage, contact });
+    ctx.emit({ type: 'playerHit', x: e.x, y: e.y, z: player.z, damage, contact, kind: e.kind });
     if (!survived) {
       alive = false;
       break;

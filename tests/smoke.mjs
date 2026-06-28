@@ -41,16 +41,16 @@ function ok(name, cond) {
   p.value = 10;
   recomputeStats(p);
   applyOperator(p, 'multiply', 3);
-  ok('multiply: 10*3=30', p.value === 30);
+  ok('multiply: 10の×3ゲートは増加量を抑えて23', p.value === 23);
   applyOperator(p, 'add', 5);
-  ok('add: 30+5=35', p.value === 35);
+  ok('add: 23+5=28', p.value === 28);
   applyOperator(p, 'subtract', 5);
-  ok('subtract: 35-5=30', p.value === 30);
+  ok('subtract: 28-5=23', p.value === 23);
   applyOperator(p, 'divide', 2);
-  ok('divide: 30/2=15', p.value === 15);
-  ok('shotCap で同時発射数が上限', p.shotCount === 15);
-  applyOperator(p, 'multiply', 10); // 150
-  ok('value超過分は威力へ', p.shotCount === 16 && p.bulletPower === Math.ceil(150 / 16));
+  ok('divide: 23/2≈12', p.value === 12);
+  ok('shotCount は value に追従', p.shotCount === 12);
+  applyOperator(p, 'multiply', 10);
+  ok('乗算ゲート1回の増加量は上限で抑制', p.value === 44);
 }
 
 // --- 3. 弾が敵を撃破する ----------------------------------------------------
@@ -249,7 +249,7 @@ function ok(name, cond) {
   ok('tank は normal より固い', tankHp > normalHp);
 }
 
-// --- 14. オートエイム: 移動方向の敵を優先し、その方向へ撃つ -----------------
+// --- 14. ターゲット候補抽選と、発射時は自動照準しないこと -------------------
 {
   const player = createPlayer();
   player.x = 0;
@@ -263,15 +263,15 @@ function ok(name, cond) {
   player.moveDir = 0;
   ok('停止中でもいずれかの敵を狙う', pickAimTarget(player, ep) !== null);
 
-  // 右の敵だけ残し、発射方向が右(vx>0)へ向くか
+  // 右の敵だけ残しても、発射方向は自動で右へ曲がらない
   ep.release(left);
   const bp = createBulletSystem();
   player.weapon = 'rifle';
   recomputeStats(player);
   firePlayer(bp, player, ep);
   const fired = bp.items.filter((b) => b.active);
-  ok('オートエイムで右の敵へ vx>0 の弾が出る', fired.length > 0 && fired.every((b) => b.vx > 0));
-  ok('発射時に aimTargetId が設定される', player.aimTargetId === right.id);
+  ok('発射時は敵がいても正面へ撃つ', fired.length > 0 && fired.every((b) => Math.abs(b.vx) < 1e-6));
+  ok('発射時に aimTargetId は設定されない', player.aimTargetId === null);
 }
 
 // --- 15. 狙う敵がいなければ正面へ撃つ ---------------------------------------
@@ -288,7 +288,7 @@ function ok(name, cond) {
   ok('敵不在なら aimTargetId は null', player.aimTargetId === null);
 }
 
-// --- 16. 突破ダメージは残HP非依存の固定値(breach) --------------------------
+// --- 16. 突破ダメージは残HPと現在POWERにも連動する -------------------------
 {
   const player = createPlayer();
   player.value = 1000;
@@ -297,13 +297,12 @@ function ok(name, cond) {
   const ep = createEnemySystem();
   const dmgs = [];
   const ctx = { emit: (e) => { if (e.type === 'playerHit') dmgs.push(e.damage); }, addScore: () => {} };
-  // 同 breach で残HPが大きく違う2体を突破させ、奪われる value が等しいことを確認
   ep.acquire({ x: 0, z: player.z + 0.5, hp: 5, speed: 0, kind: 'tank', radius: 1.2, breach: 4 });
   resolvePlayerEnemy(player, ep, ctx);
   ep.acquire({ x: 0, z: player.z + 0.5, hp: 999, speed: 0, kind: 'tank', radius: 1.2, breach: 4 });
   resolvePlayerEnemy(player, ep, ctx);
-  ok('突破ダメージは breach 固定(残HP5→4)', dmgs[0] === 4);
-  ok('高HP(999)でも突破ダメージは同じ(=4)', dmgs[1] === 4);
+  ok('突破ダメージは現在POWER割合も最低値にする', dmgs[0] >= 25);
+  ok('残HPが高い敵の突破はより重い', dmgs[1] > dmgs[0]);
 }
 
 // --- 17. 難易度設定: 5段階で敵密度と固さが変わる ---------------------------

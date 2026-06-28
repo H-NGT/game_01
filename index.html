@@ -97,6 +97,9 @@
           <button id="resumeButton" class="primary-button primary-button--retry" type="button">
             RESUME
           </button>
+          <button id="pauseRestartButton" class="secondary-button" type="button">
+            RESTART FROM START
+          </button>
         </div>
       </section>
     </main>
@@ -174,6 +177,12 @@
 
       document.querySelector('#pauseButton').addEventListener('click', requestPauseToggle);
       document.querySelector('#resumeButton').addEventListener('click', requestPauseToggle);
+      document.querySelector('#pauseRestartButton').addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        visual.requestPreviewRestart();
+        emitGameRequest('visual:restart-requested');
+      });
       blockOverlayTouch(document.querySelector('#pauseOverlay'));
 
       function installDifficultyControls() {

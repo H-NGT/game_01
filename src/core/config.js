@@ -27,6 +27,7 @@ export const CONFIG = {
     yPos: 0,
     radius: 1.0, // 衝突半径
     startValue: 1, // 初期の主数値(value)
+    maxValue: 140, // POWERの上限。乗算ゲートで雪だるま式に増えすぎるのを防ぐ
     moveResponse: 12, // 横移動の追従の速さ(大きいほど機敏)
     shotCap: 16, // 弾ストリームの最大同時数(同時発射数の上限)
     muzzleSpread: 1.6, // 多重発射時の発射口の横広がり
@@ -34,8 +35,9 @@ export const CONFIG = {
     baseFireRate: 5, // 連射速度の基本値 (volleys/s)
     fireRatePerWave: 0.25, // wave ごとの連射速度上昇
     maxFireRate: 14,
-    aimMoveThreshold: 0.04, // これ以上 targetX へ追従中なら「移動方向」と判定(オートエイム)
-    aimMaxAngle: 1.15, // オートエイムの最大旋回角(rad ≒66°)。これを超える敵は狙わない
+    aimMoveThreshold: 0.04, // これ以上 targetX へ追従中なら「移動方向」と判定
+    multiplyGainRate: 0.65, // ×ゲートの実増加率。表示倍率そのままの爆増を抑える
+    multiplyGainMax: 32, // 1回の×ゲートで増えるPOWERの最大値
   },
 
   bullets: {
@@ -82,6 +84,9 @@ export const CONFIG = {
     bossFirstAtSec: 24,
     bossIntervalSec: 34,
     bossHpPerWave: 26,
+    breachHpDamageRate: 0.45, // 到達時、残HPの何割を value ダメージへ乗せるか
+    breachValueDamageRate: 0.18, // 到達時、現在 value の最低何割を削るか
+    bossBreachValueDamageRate: 0.65,
   },
 
   gates: {
@@ -237,14 +242,14 @@ export const CONFIG = {
       // ロケランチャー: 多発拡散・中威力・中爆風。面で制圧する。
       rocket: {
         label: 'ロケラン',
-        fireRateMul: 0.62,
-        powerMul: 1.85,
-        shotMul: 1.8,
-        spreadMul: 4.2,
-        speedMul: 0.86,
+        fireRateMul: 0.55,
+        powerMul: 1.65,
+        shotMul: 0.95,
+        spreadMul: 1.85,
+        speedMul: 0.82,
         radiusMul: 1.25,
         pierce: 0,
-        splash: 2.7,
+        splash: 1.8,
       },
     },
   },

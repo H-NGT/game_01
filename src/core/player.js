@@ -47,7 +47,7 @@ export function cycleWeapon(p) {
 
 /** value から派生ステータス(同時発射数・威力)を再計算する。 */
 export function recomputeStats(p) {
-  const v = Math.max(0, Math.round(p.value));
+  const v = clamp(Math.round(p.value), 0, CONFIG.player.maxValue);
   p.value = v;
   // value をストリーム数に割り当て、上限を超えた分は威力に回す。
   p.shotCount = clamp(v, 1, CONFIG.player.shotCap);
@@ -84,7 +84,10 @@ export function applyOperator(p, operator, value) {
       p.value -= value;
       break;
     case 'multiply':
-      p.value *= value;
+      p.value += Math.min(
+        CONFIG.player.multiplyGainMax,
+        Math.ceil(p.value * Math.max(0, value - 1) * CONFIG.player.multiplyGainRate)
+      );
       break;
     case 'divide':
       if (value !== 0) p.value /= value;

@@ -1,8 +1,8 @@
 // =============================================================================
 //  bullets.js  —  弾オブジェクトの生成・移動・ライフサイクル
 // -----------------------------------------------------------------------------
-//  プレイヤーから前方へ発射。オートエイムで「狙う敵」の方向へ射線を向け、
-//  多重発射(shotCount)時はその方向を中心に射角を左右へ広げる。
+//  プレイヤーから前方へ発射。弾道は自動で敵へ向かず、プレイヤーの横位置と
+//  武器ごとの固定拡散で決まる。
 //  プールで再利用し、奥へ抜けたら回収する。
 // =============================================================================
 
@@ -65,7 +65,7 @@ export function pickAimTarget(player, enemyPool) {
 /**
  * 1 volley を発射する。プレイヤーの shotCount/bulletPower と現在の銃を反映。
  * 銃ごとに 発射数/威力/拡散/弾速/弾サイズ/貫通/爆風 が変わる。
- * enemyPool があればオートエイムで狙う敵の方向へ射線を向ける(扇はその方向が中心)。
+ * 敵への自動旋回は行わず、ユーザーが横移動で射線を合わせる。
  */
 export function firePlayer(pool, player, enemyPool) {
   const w = CONFIG.weapons.defs[player.weapon] || CONFIG.weapons.defs[CONFIG.weapons.startWeapon];
@@ -76,22 +76,16 @@ export function firePlayer(pool, player, enemyPool) {
   const muzzle = CONFIG.player.muzzleSpread;
   const radius = CONFIG.bullets.radius * w.radiusMul;
 
-  // オートエイム: 狙う敵の方向を射線の中心角にする(いなければ正面=0)。
-  const target = pickAimTarget(player, enemyPool);
-  player.aimTargetId = target ? target.id : null;
-  const aimAng = target ? Math.atan2(target.x - player.x, player.z - target.z) : 0;
-  const ca = Math.cos(aimAng);
-  const sa = Math.sin(aimAng);
+  player.aimTargetId = null;
 
   for (let i = 0; i < n; i++) {
     // t: -0.5 .. 0.5 (中央 0)
     const t = n === 1 ? 0 : i / (n - 1) - 0.5;
-    const ang = aimAng + t * spread;
-    // 発射口は射線に直交する向きへ広げる(エイム方向に追従)
+    const ang = t * spread;
     const b = pool.acquire({
-      x: player.x + t * muzzle * ca,
+      x: player.x + t * muzzle,
       y: player.y + 0.5,
-      z: player.z - 0.6 + t * muzzle * sa,
+      z: player.z - 0.6,
       vx: Math.sin(ang) * speed,
       vz: -Math.cos(ang) * speed,
       power,
