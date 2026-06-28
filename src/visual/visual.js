@@ -3,6 +3,7 @@ import * as THREE from 'three';
 const PLAYER_COLOR = 0x5ef3a6;
 const BULLET_COLOR = 0x7fe7ff;
 const ENEMY_COLOR = 0xff5d8f;
+const BOSS_COLOR = 0xffc247;
 const GATE_ADD_COLOR = 0x4cc9ff;
 const GATE_MULTIPLY_COLOR = 0x70f6a3;
 const GATE_PENALTY_COLOR = 0xff6f6f;
@@ -35,7 +36,7 @@ export class VisualController {
     this.animationFrame = 0;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x071019, 0.035);
+    this.scene.fog = new THREE.FogExp2(0x0b1721, 0.026);
 
     this.camera = new THREE.PerspectiveCamera(54, 1, 0.1, 180);
     this.camera.position.set(0, 8.4, 12.2);
@@ -47,7 +48,7 @@ export class VisualController {
       powerPreference: 'high-performance'
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x071019, 1);
+    this.renderer.setClearColor(0x0b1721, 1);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.mount.appendChild(this.renderer.domElement);
@@ -94,10 +95,10 @@ export class VisualController {
   }
 
   setupLights() {
-    const hemi = new THREE.HemisphereLight(0xb8f4ff, 0x0a1824, 1.35);
+    const hemi = new THREE.HemisphereLight(0xd7fbff, 0x182e38, 1.8);
     this.scene.add(hemi);
 
-    const key = new THREE.DirectionalLight(0xffffff, 2.1);
+    const key = new THREE.DirectionalLight(0xffffff, 2.45);
     key.position.set(-5, 10, 8);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -109,26 +110,46 @@ export class VisualController {
     key.shadow.camera.bottom = -18;
     this.scene.add(key);
 
-    const rim = new THREE.PointLight(0x56d8ff, 22, 28);
+    const rim = new THREE.PointLight(0x56d8ff, 30, 34);
     rim.position.set(0, 3, -10);
     this.scene.add(rim);
+
+    const warm = new THREE.PointLight(0xffd166, 18, 26);
+    warm.position.set(0, 4, -32);
+    this.scene.add(warm);
   }
 
   setupStage() {
     const floorMaterial = new THREE.MeshStandardMaterial({
-      color: 0x102132,
-      roughness: 0.64,
-      metalness: 0.18
+      color: 0x173044,
+      emissive: 0x06141d,
+      emissiveIntensity: 0.28,
+      roughness: 0.58,
+      metalness: 0.2
     });
     const floor = new THREE.Mesh(new THREE.BoxGeometry(TRACK_WIDTH, 0.16, TRACK_LENGTH), floorMaterial);
     floor.position.set(0, -0.08, -TRACK_LENGTH / 2 + 6);
     floor.receiveShadow = true;
     this.root.add(floor);
 
+    const sideMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1f3240,
+      emissive: 0x142532,
+      emissiveIntensity: 0.35,
+      roughness: 0.7,
+      metalness: 0.08
+    });
+    [-6.1, 6.1].forEach((x) => {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, TRACK_LENGTH), sideMaterial);
+      side.position.set(x, -0.02, -TRACK_LENGTH / 2 + 6);
+      side.receiveShadow = true;
+      this.root.add(side);
+    });
+
     const laneMaterial = new THREE.MeshBasicMaterial({
-      color: 0x77e8ff,
+      color: 0xa2f4ff,
       transparent: true,
-      opacity: 0.25
+      opacity: 0.42
     });
     [-2.65, 0, 2.65].forEach((x) => {
       const lane = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.02, TRACK_LENGTH), laneMaterial);
@@ -137,9 +158,9 @@ export class VisualController {
     });
 
     const railMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1e4153,
-      emissive: 0x113747,
-      emissiveIntensity: 0.55,
+      color: 0x2b5366,
+      emissive: 0x1f6d84,
+      emissiveIntensity: 0.72,
       roughness: 0.38
     });
     [-TRACK_WIDTH / 2 - 0.34, TRACK_WIDTH / 2 + 0.34].forEach((x) => {
@@ -150,11 +171,39 @@ export class VisualController {
       this.root.add(rail);
     });
 
-    const grid = new THREE.GridHelper(120, 60, 0x1d7188, 0x123142);
+    const stripMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffd166,
+      transparent: true,
+      opacity: 0.38
+    });
+    [-7.55, -4.7, 4.7, 7.55].forEach((x) => {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, TRACK_LENGTH), stripMaterial);
+      strip.position.set(x, 0.06, -TRACK_LENGTH / 2 + 6);
+      this.root.add(strip);
+    });
+
+    const panelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x24475b,
+      emissive: 0x17475c,
+      emissiveIntensity: 0.8,
+      roughness: 0.42,
+      metalness: 0.18
+    });
+    for (let z = -8; z > -62; z -= 10) {
+      [-8.2, 8.2].forEach((x) => {
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.4, 4.2), panelMaterial);
+        panel.position.set(x, 0.72, z);
+        panel.castShadow = true;
+        panel.receiveShadow = true;
+        this.root.add(panel);
+      });
+    }
+
+    const grid = new THREE.GridHelper(120, 60, 0x42b8d0, 0x23465a);
     grid.position.y = 0.025;
     grid.position.z = -24;
     grid.material.transparent = true;
-    grid.material.opacity = 0.2;
+    grid.material.opacity = 0.28;
     this.root.add(grid);
   }
 
@@ -299,23 +348,30 @@ export class VisualController {
     mesh.position.lerp(mesh.userData.target, Math.min(1, 12 * dt));
 
     if (type === 'bullets') {
-      mesh.rotation.x += dt * 18;
-      mesh.rotation.y += dt * 7;
+      const vx = item.vx ?? 0;
+      const vz = item.vz ?? -1;
+      mesh.rotation.y = Math.atan2(vx, -vz);
+      mesh.rotation.z += dt * (mesh.userData.spin ?? 10);
+      if (mesh.userData.glow) {
+        mesh.userData.glow.material.opacity = mesh.userData.glowBase + Math.sin(elapsed * 18 + mesh.id) * 0.08;
+      }
     }
 
     if (type === 'enemies') {
       const hp = item.hp ?? item.health ?? item.value ?? 1;
       const maxHp = item.maxHp ?? item.maxHealth ?? Math.max(hp, 1);
-      const pressure = THREE.MathUtils.clamp(hp / maxHp, 0.22, 1);
-      mesh.scale.lerp(tmpVector.set(pressure, pressure, pressure), 0.18);
-      mesh.rotation.y += dt * 1.4;
-      mesh.userData.label.position.y = 1.18 + Math.sin(elapsed * 4 + mesh.id) * 0.06;
+      const pressure = THREE.MathUtils.clamp(hp / maxHp, 0.34, 1);
+      const base = mesh.userData.baseScale ?? 1;
+      const scale = base * (0.62 + pressure * 0.38);
+      mesh.scale.lerp(tmpVector.set(scale, scale, scale), 0.18);
+      mesh.rotation.y += dt * (mesh.userData.turnRate ?? 1.4);
+      mesh.userData.label.position.y = (mesh.userData.labelY ?? 1.18) + Math.sin(elapsed * 4 + mesh.id) * 0.06;
       const label = String(Math.ceil(hp));
       if (mesh.userData.label.userData.text !== label) {
         refreshTextSprite(mesh.userData.label, label, {
           color: '#ffffff',
-          background: 'rgba(255, 93, 143, 0.86)',
-          fontSize: 70
+          background: mesh.userData.labelBackground ?? 'rgba(255, 93, 143, 0.86)',
+          fontSize: mesh.userData.labelFontSize ?? 70
         });
       }
     }
@@ -335,46 +391,81 @@ export class VisualController {
 
   createBullet(item) {
     const group = new THREE.Group();
+    const theme = bulletTheme(item.kind);
+    let coreGeometry;
+    if (theme.shape === 'needle') {
+      coreGeometry = new THREE.CylinderGeometry(theme.radius * 0.38, theme.radius * 0.52, theme.length, 14);
+      coreGeometry.rotateX(Math.PI / 2);
+    } else if (theme.shape === 'rocket') {
+      coreGeometry = new THREE.ConeGeometry(theme.radius, theme.length, 18);
+      coreGeometry.rotateX(-Math.PI / 2);
+    } else {
+      coreGeometry = new THREE.SphereGeometry(theme.radius, 18, 18);
+    }
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.17, 18, 18),
+      coreGeometry,
       new THREE.MeshStandardMaterial({
-        color: BULLET_COLOR,
-        emissive: 0x2eb6df,
-        emissiveIntensity: 0.85,
-        roughness: 0.2,
-        metalness: 0.05
+        color: theme.color,
+        emissive: theme.emissive,
+        emissiveIntensity: theme.emissiveIntensity,
+        roughness: 0.18,
+        metalness: 0.08
       })
     );
     core.castShadow = true;
     group.add(core);
 
     const trail = new THREE.Mesh(
-      new THREE.ConeGeometry(0.13, 0.72, 18),
+      new THREE.ConeGeometry(theme.trailRadius, theme.trailLength, 18),
       new THREE.MeshBasicMaterial({
-        color: 0x56d8ff,
+        color: theme.trailColor,
         transparent: true,
-        opacity: 0.34
+        opacity: theme.trailOpacity
       })
     );
     trail.rotation.x = Math.PI / 2;
-    trail.position.z = 0.32;
+    trail.position.z = theme.length * 0.5;
     group.add(trail);
 
+    if (theme.ring) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(theme.radius * 1.35, theme.radius * 0.12, 8, 32),
+        new THREE.MeshBasicMaterial({ color: theme.trailColor, transparent: true, opacity: 0.45 })
+      );
+      ring.rotation.x = Math.PI / 2;
+      group.add(ring);
+    }
+
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(theme.radius * 1.8, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: theme.trailColor,
+        transparent: true,
+        opacity: theme.glowOpacity,
+        depthWrite: false
+      })
+    );
+    group.add(glow);
+
     group.userData.target = new THREE.Vector3();
+    group.userData.spin = theme.spin;
+    group.userData.glow = glow;
+    group.userData.glowBase = theme.glowOpacity;
     group.position.copy(toVector(item, 0, 0.58, 0));
     return group;
   }
 
   createEnemy(item) {
     const group = new THREE.Group();
+    const theme = enemyTheme(item.kind, item.isBoss);
     const body = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.86, 1),
+      theme.geometry,
       new THREE.MeshStandardMaterial({
-        color: ENEMY_COLOR,
-        emissive: 0x8f1647,
-        emissiveIntensity: 0.45,
-        roughness: 0.34,
-        metalness: 0.18
+        color: theme.color,
+        emissive: theme.emissive,
+        emissiveIntensity: theme.emissiveIntensity,
+        roughness: 0.32,
+        metalness: 0.2
       })
     );
     body.castShadow = true;
@@ -382,25 +473,46 @@ export class VisualController {
     group.add(body);
 
     const wire = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.91, 1),
+      theme.wireGeometry,
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         wireframe: true,
         transparent: true,
-        opacity: 0.17
+        opacity: theme.wireOpacity
       })
     );
     group.add(wire);
 
+    if (theme.crown) {
+      const crown = new THREE.Mesh(
+        new THREE.TorusGeometry(0.94, 0.08, 10, 56),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff0a8,
+          emissive: 0xffb02e,
+          emissiveIntensity: 1.1,
+          roughness: 0.2,
+          metalness: 0.22
+        })
+      );
+      crown.position.y = 0.42;
+      crown.rotation.x = Math.PI / 2;
+      group.add(crown);
+    }
+
     const hp = item.hp ?? item.health ?? item.value ?? 1;
     const label = makeTextSprite(String(Math.ceil(hp)), {
       color: '#ffffff',
-      background: 'rgba(255, 93, 143, 0.86)',
-      fontSize: 70
+      background: theme.labelBackground,
+      fontSize: theme.labelFontSize
     });
-    label.position.set(0, 1.18, 0);
+    label.position.set(0, theme.labelY, 0);
     group.add(label);
     group.userData.label = label;
+    group.userData.baseScale = theme.baseScale;
+    group.userData.turnRate = theme.turnRate;
+    group.userData.labelY = theme.labelY;
+    group.userData.labelBackground = theme.labelBackground;
+    group.userData.labelFontSize = theme.labelFontSize;
     group.userData.target = new THREE.Vector3();
     group.position.copy(toVector(item, 0, 0.92, -14));
     return group;
@@ -587,6 +699,110 @@ function collectionFrom(value) {
   return value.filter((item) => item && item.active !== false);
 }
 
+function bulletTheme(kind) {
+  const themes = {
+    rifle: {
+      shape: 'needle',
+      color: 0xb8fbff,
+      emissive: 0x6be9ff,
+      emissiveIntensity: 1.2,
+      radius: 0.16,
+      length: 1.08,
+      trailRadius: 0.08,
+      trailLength: 1.2,
+      trailColor: 0x8df7ff,
+      trailOpacity: 0.5,
+      glowOpacity: 0.18,
+      spin: 18,
+    },
+    machinegun: {
+      shape: 'sphere',
+      color: 0xfff2a6,
+      emissive: 0xffd166,
+      emissiveIntensity: 0.95,
+      radius: 0.1,
+      length: 0.38,
+      trailRadius: 0.06,
+      trailLength: 0.48,
+      trailColor: 0xffd166,
+      trailOpacity: 0.36,
+      glowOpacity: 0.12,
+      spin: 28,
+    },
+    bazooka: {
+      shape: 'sphere',
+      color: 0xff8a5b,
+      emissive: 0xff3d00,
+      emissiveIntensity: 1.35,
+      radius: 0.38,
+      length: 0.8,
+      trailRadius: 0.28,
+      trailLength: 1.35,
+      trailColor: 0xff6f3a,
+      trailOpacity: 0.58,
+      glowOpacity: 0.28,
+      ring: true,
+      spin: 6,
+    },
+    rocket: {
+      shape: 'rocket',
+      color: 0xb7ff7a,
+      emissive: 0x70f6a3,
+      emissiveIntensity: 1.05,
+      radius: 0.22,
+      length: 0.78,
+      trailRadius: 0.16,
+      trailLength: 0.95,
+      trailColor: 0x70f6a3,
+      trailOpacity: 0.5,
+      glowOpacity: 0.2,
+      ring: true,
+      spin: 12,
+    },
+  };
+  return themes[kind] ?? themes.rifle;
+}
+
+function enemyTheme(kind, isBoss) {
+  if (isBoss || kind === 'boss') {
+    return {
+      geometry: new THREE.DodecahedronGeometry(1.08, 1),
+      wireGeometry: new THREE.DodecahedronGeometry(1.16, 1),
+      color: BOSS_COLOR,
+      emissive: 0xb35400,
+      emissiveIntensity: 0.9,
+      wireOpacity: 0.3,
+      baseScale: 1.85,
+      turnRate: 0.5,
+      labelY: 2.35,
+      labelBackground: 'rgba(255, 178, 46, 0.9)',
+      labelFontSize: 58,
+      crown: true,
+    };
+  }
+  const themes = {
+    normal: { color: ENEMY_COLOR, emissive: 0x8f1647, baseScale: 1, turnRate: 1.4 },
+    tank: { color: 0xff7a59, emissive: 0x9f2e14, baseScale: 1.32, turnRate: 0.75 },
+    rusher: { color: 0xff3d77, emissive: 0xc70048, baseScale: 0.82, turnRate: 2.6 },
+    weaver: { color: 0xbc7cff, emissive: 0x5d22b8, baseScale: 1.02, turnRate: 1.9 },
+  };
+  const picked = themes[kind] ?? themes.normal;
+  return {
+    geometry: new THREE.IcosahedronGeometry(0.86, 1),
+    wireGeometry: new THREE.IcosahedronGeometry(0.91, 1),
+    color: picked.color,
+    emissive: picked.emissive,
+    emissiveIntensity: 0.5,
+    wireOpacity: 0.17,
+    baseScale: picked.baseScale,
+    turnRate: picked.turnRate,
+    labelY: 1.18,
+    labelBackground: 'rgba(255, 93, 143, 0.86)',
+    labelFontSize: 70,
+    crown: false,
+  };
+}
+
 function createPreviewState() {
   return {
     status: 'ready',
@@ -596,7 +812,8 @@ function createPreviewState() {
     bullets: [],
     enemies: [
       { id: 'preview-enemy-1', x: -1.7, y: 0, z: -12, hp: 18, maxHp: 18 },
-      { id: 'preview-enemy-2', x: 1.9, y: 0, z: -18, hp: 34, maxHp: 34 }
+      { id: 'preview-enemy-2', x: 1.9, y: 0, z: -18, hp: 34, maxHp: 34 },
+      { id: 'preview-boss', x: 0, y: 0, z: -32, hp: 240, maxHp: 240, kind: 'boss', isBoss: true }
     ],
     gates: [
       { id: 'preview-gate-1', x: -1.8, y: 0, z: -6, operator: 'add', value: 5 },
@@ -612,7 +829,10 @@ function updatePreviewState(state, dt) {
     id: `preview-bullet-${index}`,
     x: Math.sin(time * 1.8 + index) * 0.9 + (index % 2 ? 0.22 : -0.22),
     y: 0,
-    z: 2.4 - ((time * 9 + index * 1.5) % 18)
+    z: 2.4 - ((time * 9 + index * 1.5) % 18),
+    kind: ['rifle', 'machinegun', 'bazooka', 'rocket'][index % 4],
+    vx: Math.sin(index) * 12,
+    vz: -70
   }));
   state.score += Math.round(dt * 8);
 }

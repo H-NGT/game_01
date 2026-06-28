@@ -4,7 +4,7 @@ import { Game } from '../src/core/game.js';
 import { ObjectPool } from '../src/core/pool.js';
 import { createPlayer, applyOperator, recomputeStats, setWeapon, cycleWeapon } from '../src/core/player.js';
 import { createBulletSystem, firePlayer, pickAimTarget } from '../src/core/bullets.js';
-import { createEnemySystem, spawnEnemy, rollEnemyType, burstCount } from '../src/core/enemies.js';
+import { createEnemySystem, spawnEnemy, spawnBoss, rollEnemyType, burstCount } from '../src/core/enemies.js';
 import { resolveBulletEnemy, resolvePlayerEnemy } from '../src/core/collision.js';
 
 let pass = 0;
@@ -324,6 +324,57 @@ function ok(name, cond) {
   Math.random = originalRandom;
   ok('高難易度ほど敵HPが高い', hard.maxHp > easy.maxHp);
   ok('高難易度ほど突破ダメージが重い', hard.breach > easy.breach);
+}
+
+// --- 18. 武器ごとの弾の出方が分かれる --------------------------------------
+{
+  const ep = createEnemySystem();
+  ep.acquire({ x: 0, z: -20, hp: 500, speed: 0, kind: 'normal', radius: 1.2 });
+  const stats = {};
+  for (const weapon of ['rifle', 'machinegun', 'bazooka', 'rocket']) {
+    const p = createPlayer();
+    p.value = 32;
+    p.weapon = weapon;
+    recomputeStats(p);
+    const bp = createBulletSystem();
+    firePlayer(bp, p, ep);
+    const fired = bp.items.filter((b) => b.active);
+    stats[weapon] = {
+      count: fired.length,
+      power: fired[0]?.power ?? 0,
+      radius: fired[0]?.radius ?? 0,
+      splash: fired[0]?.splash ?? 0,
+      pierce: fired[0]?.pierce ?? 0,
+    };
+  }
+  ok('マシンガンはライフルより低威力で連射寄り', stats.machinegun.power < stats.rifle.power);
+  ok('バズーカは最大級の単発威力と爆風を持つ', stats.bazooka.power > stats.rifle.power && stats.bazooka.splash > stats.rocket.splash);
+  ok('ロケットはライフルより多弾・爆風あり', stats.rocket.count > stats.rifle.count && stats.rocket.splash > 0);
+  ok('ライフルは貫通性能を持つ', stats.rifle.pierce > 0);
+}
+
+// --- 19. ボス: 定期出現し、通常敵より大きく固い -----------------------------
+{
+  const ep = createEnemySystem();
+  const normal = spawnEnemy(ep, 1, 16, 0, 3);
+  const boss = spawnBoss(ep, 1, 16, 3);
+  ok('ボスは kind=boss と isBoss を持つ', boss.kind === 'boss' && boss.isBoss === true);
+  ok('ボスは通常敵よりかなり固い', boss.maxHp > normal.maxHp * 10);
+  ok('ボスは通常敵より大きい', boss.radius > normal.radius * 2);
+
+  const g = new Game();
+  g.start();
+  g.player.value = 9999;
+  recomputeStats(g.player);
+  let bossSeen = false;
+  for (let i = 0; i < 1500 && g.state.status === 'playing'; i++) {
+    g.update(1 / 60);
+    if (g.state.events.some((e) => e.type === 'bossSpawned') || g.state.enemies.some((e) => e.kind === 'boss')) {
+      bossSeen = true;
+      break;
+    }
+  }
+  ok('一定時間後にボスが出現する', bossSeen);
 }
 
 console.log(`\n結果: ${pass} passed, ${fail} failed`);

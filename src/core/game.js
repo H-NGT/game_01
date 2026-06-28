@@ -15,7 +15,7 @@ import { CONFIG, getDifficultyConfig, normalizeDifficultyLevel } from './config.
 import { ObjectPool } from './pool.js';
 import { createPlayer, updatePlayer, recomputeStats } from './player.js';
 import { createBulletSystem, firePlayer, updateBullets } from './bullets.js';
-import { createEnemySystem, spawnEnemy, updateEnemies, burstCount } from './enemies.js';
+import { createEnemySystem, spawnEnemy, spawnBoss, updateEnemies, burstCount } from './enemies.js';
 import { createGateSystem, spawnGatePair, updateGates } from './gates.js';
 import { resolveBulletEnemy, resolvePlayerGate, resolvePlayerEnemy } from './collision.js';
 import { InputController } from './input.js';
@@ -54,6 +54,7 @@ export class Game {
     // 内部タイマ
     this._waveTimer = 0;
     this._enemyTimer = 0;
+    this._nextBossAt = CONFIG.enemies.bossFirstAtSec;
     this._gateTimer = 0;
 
     this._renderHook = null;
@@ -107,6 +108,7 @@ export class Game {
     this._waveTimer = 0;
     // 猶予明け(firstSpawnDelaySec)に最初の敵が即出るようタイマを先行充填
     this._enemyTimer = this._currentEnemyInterval();
+    this._nextBossAt = CONFIG.enemies.bossFirstAtSec;
     // 最初のゲートが firstSpawnAtSec で出るようタイマを先行させる
     this._gateTimer = CONFIG.gates.spawnIntervalSec - CONFIG.gates.firstSpawnAtSec;
     // スタート強化ゲート: 近距離(starterZ)に両方バフのペアを出し、
@@ -221,6 +223,12 @@ export class Game {
           spawnEnemy(this.enemyPool, s.wave, s.scrollSpeed, undefined, this.difficultyLevel);
         }
       }
+    }
+
+    if (s.time >= this._nextBossAt) {
+      this._nextBossAt += CONFIG.enemies.bossIntervalSec;
+      const boss = spawnBoss(this.enemyPool, s.wave, s.scrollSpeed, this.difficultyLevel);
+      if (boss) this.state.events.push({ type: 'bossSpawned', x: boss.x, y: boss.y, z: boss.z, hp: boss.maxHp });
     }
     updateEnemies(this.enemyPool, dt);
 

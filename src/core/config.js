@@ -48,11 +48,11 @@ export const CONFIG = {
   enemies: {
     poolSize: 512,
     radius: 1.2, // 標準サイズの衝突半径(タイプで radiusMul 倍される)
-    baseHp: 8, // wave1 の基本HP
-    hpPerWave: 5, // wave ごとのHP増加
-    baseSpawnIntervalSec: 0.52, // 出現間隔(基本)
-    minSpawnIntervalSec: 0.12,
-    spawnIntervalPerWave: 0.045, // wave ごとに間隔短縮
+    baseHp: 9, // wave1 の基本HP
+    hpPerWave: 4, // wave ごとのHP増加
+    baseSpawnIntervalSec: 0.62, // 出現間隔(基本)
+    minSpawnIntervalSec: 0.18,
+    spawnIntervalPerWave: 0.035, // wave ごとに間隔短縮
     firstSpawnDelaySec: 0.95, // 開始直後の短い猶予(スタート強化ゲートを取る時間)
     breachDamageMin: 1, // 突破された敵が与える value ダメージの最小値
     weaveFreq: 2.6, // weaver 系の横揺れ角速度 (rad/s)
@@ -67,6 +67,7 @@ export const CONFIG = {
       tank: { hpMul: 3.2, speedMul: 0.72, radiusMul: 1.45, breach: 4, weave: 0 }, // 固い壁
       rusher: { hpMul: 0.7, speedMul: 1.85, radiusMul: 0.85, breach: 5, weave: 0 }, // 速い・突破が痛い
       weaver: { hpMul: 1.25, speedMul: 1.05, radiusMul: 1.0, breach: 2, weave: 2.6 }, // 横に揺れて避ける
+      boss: { hpMul: 18, speedMul: 0.54, radiusMul: 2.7, breach: 14, weave: 0.6 }, // 定期出現する巨大な壁
     },
     // wave ごとの各タイプ出現重み。序盤は normal 中心、後半で強敵が増える。
     // weightAt(wave) で線形に強敵側へ寄せる(下の関数参照)。
@@ -76,8 +77,11 @@ export const CONFIG = {
     },
     // wave に応じて 1 回のスポーンで複数体まとめて出す(密度を上げる)。
     burstBase: 1,
-    burstPerWave: 0.24, // wave ごとに +0.24 体(切り捨て)
-    burstMax: 8,
+    burstPerWave: 0.2, // wave ごとに +0.2 体(切り捨て)
+    burstMax: 6,
+    bossFirstAtSec: 24,
+    bossIntervalSec: 34,
+    bossHpPerWave: 26,
   },
 
   gates: {
@@ -97,12 +101,13 @@ export const CONFIG = {
     levels: {
       1: {
         label: 'EASY',
-        enemyIntervalMul: 1.35,
-        enemyHpMul: 0.75,
-        enemySpeedMul: 0.88,
-        breachMul: 0.75,
+        enemyIntervalMul: 1.22,
+        enemyHpMul: 0.82,
+        enemySpeedMul: 0.92,
+        breachMul: 0.8,
         burstBonus: 0,
         weightWaveBonus: -1,
+        bossHpMul: 0.72,
         gateGoodPairChance: 0.48,
         gatePenaltyChance: 0.45,
         gateGoodValueMul: 1.2,
@@ -112,12 +117,13 @@ export const CONFIG = {
       },
       2: {
         label: 'NORMAL',
-        enemyIntervalMul: 1.0,
+        enemyIntervalMul: 1.04,
         enemyHpMul: 1.0,
         enemySpeedMul: 0.98,
         breachMul: 1.0,
         burstBonus: 0,
         weightWaveBonus: 0,
+        bossHpMul: 0.92,
         gateGoodPairChance: 0.28,
         gatePenaltyChance: 0.62,
         gateGoodValueMul: 1.0,
@@ -127,12 +133,13 @@ export const CONFIG = {
       },
       3: {
         label: 'HARD',
-        enemyIntervalMul: 0.74,
-        enemyHpMul: 1.25,
-        enemySpeedMul: 1.06,
-        breachMul: 1.25,
+        enemyIntervalMul: 0.88,
+        enemyHpMul: 1.18,
+        enemySpeedMul: 1.04,
+        breachMul: 1.18,
         burstBonus: 1,
-        weightWaveBonus: 2,
+        weightWaveBonus: 1,
+        bossHpMul: 1.12,
         gateGoodPairChance: 0.16,
         gatePenaltyChance: 0.74,
         gateGoodValueMul: 0.82,
@@ -142,12 +149,13 @@ export const CONFIG = {
       },
       4: {
         label: 'EXPERT',
-        enemyIntervalMul: 0.58,
-        enemyHpMul: 1.6,
-        enemySpeedMul: 1.15,
-        breachMul: 1.5,
-        burstBonus: 2,
-        weightWaveBonus: 4,
+        enemyIntervalMul: 0.72,
+        enemyHpMul: 1.42,
+        enemySpeedMul: 1.1,
+        breachMul: 1.36,
+        burstBonus: 1,
+        weightWaveBonus: 3,
+        bossHpMul: 1.38,
         gateGoodPairChance: 0.08,
         gatePenaltyChance: 0.84,
         gateGoodValueMul: 0.7,
@@ -157,12 +165,13 @@ export const CONFIG = {
       },
       5: {
         label: 'NIGHTMARE',
-        enemyIntervalMul: 0.44,
-        enemyHpMul: 2.05,
-        enemySpeedMul: 1.25,
-        breachMul: 1.85,
-        burstBonus: 3,
-        weightWaveBonus: 6,
+        enemyIntervalMul: 0.6,
+        enemyHpMul: 1.78,
+        enemySpeedMul: 1.18,
+        breachMul: 1.62,
+        burstBonus: 2,
+        weightWaveBonus: 5,
+        bossHpMul: 1.72,
         gateGoodPairChance: 0.03,
         gatePenaltyChance: 0.92,
         gateGoodValueMul: 0.58,
@@ -192,50 +201,50 @@ export const CONFIG = {
       // ライフル: 単発を太く速く、2体まで貫通。堅実な万能銃。
       rifle: {
         label: 'ライフル',
-        fireRateMul: 1.0, // 連射倍率
-        powerMul: 1.5, // 1発の威力倍率
-        shotMul: 0.55, // 同時発射数の倍率(数を絞って1発を太く)
-        spreadMul: 0.35, // 射角の拡散倍率(高精度)
-        speedMul: 1.35, // 弾速倍率(速い)
-        radiusMul: 1.0, // 弾の当たり判定倍率
-        pierce: 2, // 貫通体数(0=貫通なし)
+        fireRateMul: 0.9, // 連射倍率
+        powerMul: 2.2, // 1発の威力倍率
+        shotMul: 0.25, // 同時発射数の倍率(数を絞って1発を太く)
+        spreadMul: 0.18, // 射角の拡散倍率(高精度)
+        speedMul: 1.65, // 弾速倍率(速い)
+        radiusMul: 0.95, // 弾の当たり判定倍率
+        pierce: 4, // 貫通体数(0=貫通なし)
         splash: 0, // 爆風半径(0=爆風なし)
       },
       // マシンガン: 超連射・低威力・大きく拡散。手数で押す。
       machinegun: {
         label: 'マシンガン',
-        fireRateMul: 2.4,
-        powerMul: 0.5,
-        shotMul: 1.0,
-        spreadMul: 1.8,
-        speedMul: 1.1,
-        radiusMul: 0.9,
+        fireRateMul: 3.7,
+        powerMul: 0.35,
+        shotMul: 0.7,
+        spreadMul: 3.1,
+        speedMul: 1.18,
+        radiusMul: 0.55,
         pierce: 0,
         splash: 0,
       },
       // バズーカ: 低連射・超高威力・低速・大爆風。固い敵をまとめて吹き飛ばす。
       bazooka: {
         label: 'バズーカ',
-        fireRateMul: 0.45,
-        powerMul: 3.2,
-        shotMul: 0.3,
-        spreadMul: 0.2,
-        speedMul: 0.7,
-        radiusMul: 1.8,
+        fireRateMul: 0.28,
+        powerMul: 5.2,
+        shotMul: 0.16,
+        spreadMul: 0.12,
+        speedMul: 0.58,
+        radiusMul: 2.7,
         pierce: 0,
-        splash: 3.4,
+        splash: 5.3,
       },
       // ロケランチャー: 多発拡散・中威力・中爆風。面で制圧する。
       rocket: {
         label: 'ロケラン',
-        fireRateMul: 0.75,
-        powerMul: 1.6,
-        shotMul: 1.35,
-        spreadMul: 2.3,
-        speedMul: 0.95,
-        radiusMul: 1.3,
+        fireRateMul: 0.62,
+        powerMul: 1.85,
+        shotMul: 1.8,
+        spreadMul: 4.2,
+        speedMul: 0.86,
+        radiusMul: 1.25,
         pierce: 0,
-        splash: 2.2,
+        splash: 2.7,
       },
     },
   },
