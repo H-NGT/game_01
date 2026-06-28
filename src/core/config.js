@@ -31,7 +31,6 @@ export const CONFIG = {
     moveResponse: 12, // 横移動の追従の速さ(大きいほど機敏)
     shotCap: 16, // 弾ストリームの最大同時数(同時発射数の上限)
     muzzleSpread: 1.6, // 多重発射時の発射口の横広がり
-    spreadAngle: 0.16, // 多重発射時の射角の広がり(rad, 全幅)
     baseFireRate: 5, // 連射速度の基本値 (volleys/s)
     fireRatePerWave: 0.25, // wave ごとの連射速度上昇
     maxFireRate: 14,
@@ -209,7 +208,6 @@ export const CONFIG = {
         fireRateMul: 0.9, // 連射倍率
         powerMul: 2.2, // 1発の威力倍率
         shotMul: 0.25, // 同時発射数の倍率(数を絞って1発を太く)
-        spreadMul: 0.18, // 射角の拡散倍率(高精度)
         speedMul: 1.65, // 弾速倍率(速い)
         radiusMul: 0.95, // 弾の当たり判定倍率
         pierce: 4, // 貫通体数(0=貫通なし)
@@ -221,7 +219,6 @@ export const CONFIG = {
         fireRateMul: 3.7,
         powerMul: 0.35,
         shotMul: 0.7,
-        spreadMul: 3.1,
         speedMul: 1.18,
         radiusMul: 0.55,
         pierce: 0,
@@ -233,7 +230,6 @@ export const CONFIG = {
         fireRateMul: 0.28,
         powerMul: 5.2,
         shotMul: 0.16,
-        spreadMul: 0.12,
         speedMul: 0.58,
         radiusMul: 2.7,
         pierce: 0,
@@ -245,7 +241,6 @@ export const CONFIG = {
         fireRateMul: 0.55,
         powerMul: 1.65,
         shotMul: 0.95,
-        spreadMul: 1.85,
         speedMul: 0.82,
         radiusMul: 1.25,
         pierce: 0,

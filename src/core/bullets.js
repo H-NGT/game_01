@@ -1,8 +1,8 @@
 // =============================================================================
 //  bullets.js  —  弾オブジェクトの生成・移動・ライフサイクル
 // -----------------------------------------------------------------------------
-//  プレイヤーから前方へ発射。弾道は自動で敵へ向かず、プレイヤーの横位置と
-//  武器ごとの固定拡散で決まる。
+//  プレイヤーから画面奥へまっすぐ発射。弾道は敵へ向かわず、プレイヤーの
+//  横位置をユーザーが合わせることで命中させる。
 //  プールで再利用し、奥へ抜けたら回収する。
 // =============================================================================
 
@@ -34,45 +34,15 @@ export function createBulletSystem() {
 }
 
 /**
- * オートエイム: 前方の敵から狙う1体を選ぶ。
- *  - プレイヤーの移動方向(moveDir)側にいる敵を優先(なければ全体の最近接)。
- *  - 旋回角が aimMaxAngle を超える真横〜後方の敵は狙わない。
- * 狙う敵がいなければ null(=正面へ撃つ)。
- */
-export function pickAimTarget(player, enemyPool) {
-  if (!enemyPool) return null;
-  const enemies = enemyPool.items;
-  const dir = player.moveDir;
-  const maxAng = CONFIG.player.aimMaxAngle;
-  let best = null;
-  let bestD2 = Infinity;
-  let bestDir = null;
-  let bestDirD2 = Infinity;
-  for (let i = 0; i < enemies.length; i++) {
-    const e = enemies[i];
-    if (!e.active) continue;
-    const dz = player.z - e.z; // 前方距離(>0 が自機より奥=前方)
-    if (dz <= 0) continue; // 自機平面より手前/背後は狙わない
-    const dx = e.x - player.x;
-    if (Math.abs(Math.atan2(dx, dz)) > maxAng) continue; // 旋回し過ぎる敵は除外
-    const d2 = dx * dx + dz * dz;
-    if (d2 < bestD2) { bestD2 = d2; best = e; }
-    if (dir !== 0 && Math.sign(dx) === dir && d2 < bestDirD2) { bestDirD2 = d2; bestDir = e; }
-  }
-  return bestDir || best;
-}
-
-/**
  * 1 volley を発射する。プレイヤーの shotCount/bulletPower と現在の銃を反映。
- * 銃ごとに 発射数/威力/拡散/弾速/弾サイズ/貫通/爆風 が変わる。
- * 敵への自動旋回は行わず、ユーザーが横移動で射線を合わせる。
+ * 銃ごとに 発射数/威力/弾速/弾サイズ/貫通/爆風 が変わる。
+ * 横方向の速度は持たせず、ユーザーが横移動で射線を合わせる。
  */
 export function firePlayer(pool, player, enemyPool) {
   const w = CONFIG.weapons.defs[player.weapon] || CONFIG.weapons.defs[CONFIG.weapons.startWeapon];
   const n = Math.max(1, Math.round(player.shotCount * w.shotMul));
   const power = Math.max(1, Math.round(player.bulletPower * w.powerMul));
   const speed = CONFIG.bullets.speed * w.speedMul;
-  const spread = CONFIG.player.spreadAngle * w.spreadMul;
   const muzzle = CONFIG.player.muzzleSpread;
   const radius = CONFIG.bullets.radius * w.radiusMul;
 
@@ -81,13 +51,12 @@ export function firePlayer(pool, player, enemyPool) {
   for (let i = 0; i < n; i++) {
     // t: -0.5 .. 0.5 (中央 0)
     const t = n === 1 ? 0 : i / (n - 1) - 0.5;
-    const ang = t * spread;
     const b = pool.acquire({
       x: player.x + t * muzzle,
       y: player.y + 0.5,
       z: player.z - 0.6,
-      vx: Math.sin(ang) * speed,
-      vz: -Math.cos(ang) * speed,
+      vx: 0,
+      vz: -speed,
       power,
       kind: player.weapon,
       radius,

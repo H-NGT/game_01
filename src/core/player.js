@@ -24,8 +24,8 @@ export function createPlayer() {
     fireRate: CONFIG.player.baseFireRate, // 連射速度(volleys/s, 武器倍率込み)
     fireTimer: 0, // 発射クールダウン蓄積
     weapon: CONFIG.weapons.startWeapon, // 現在の銃(描画契約: player.weapon)
-    moveDir: 0, // 横移動方向(-1/0/1)。オートエイムの優先方向に使う
-    aimTargetId: null, // 現在オートエイムしている敵の id(描画契約: エイム線など)
+    moveDir: 0, // 横移動方向(-1/0/1)
+    aimTargetId: null, // 互換用。現在は自動照準を使わないため常に null
   };
   recomputeStats(p);
   return p;
@@ -58,7 +58,7 @@ export function recomputeStats(p) {
 export function updatePlayer(p, input, dt, wave) {
   const half = CONFIG.lane.halfWidth;
   p.targetX = clamp(input.targetX, -half, half);
-  // 追従の残差から「今どちらへ動こうとしているか」を求める(オートエイムの優先方向)
+  // 追従の残差から「今どちらへ動こうとしているか」を求める
   const follow = p.targetX - p.x;
   p.moveDir = Math.abs(follow) > CONFIG.player.aimMoveThreshold ? Math.sign(follow) : 0;
   // フレームレート非依存の指数追従

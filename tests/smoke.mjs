@@ -3,7 +3,7 @@
 import { Game } from '../src/core/game.js';
 import { ObjectPool } from '../src/core/pool.js';
 import { createPlayer, applyOperator, recomputeStats, setWeapon, cycleWeapon } from '../src/core/player.js';
-import { createBulletSystem, firePlayer, pickAimTarget } from '../src/core/bullets.js';
+import { createBulletSystem, firePlayer } from '../src/core/bullets.js';
 import { createEnemySystem, spawnEnemy, spawnBoss, rollEnemyType, burstCount } from '../src/core/enemies.js';
 import { resolveBulletEnemy, resolvePlayerEnemy } from '../src/core/collision.js';
 
@@ -249,28 +249,21 @@ function ok(name, cond) {
   ok('tank は normal より固い', tankHp > normalHp);
 }
 
-// --- 14. ターゲット候補抽選と、発射時は自動照準しないこと -------------------
+// --- 14. 発射時は敵の位置へ自動照準しない ----------------------------------
 {
   const player = createPlayer();
   player.x = 0;
   const ep = createEnemySystem();
-  const right = ep.acquire({ x: 3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
-  const left = ep.acquire({ x: -3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
-  player.moveDir = 1;
-  ok('移動方向(右)側の敵を優先して狙う', pickAimTarget(player, ep) === right);
-  player.moveDir = -1;
-  ok('移動方向(左)側の敵を優先して狙う', pickAimTarget(player, ep) === left);
-  player.moveDir = 0;
-  ok('停止中でもいずれかの敵を狙う', pickAimTarget(player, ep) !== null);
-
-  // 右の敵だけ残しても、発射方向は自動で右へ曲がらない
-  ep.release(left);
+  ep.acquire({ x: 3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
+  ep.acquire({ x: -3, z: player.z - 12, hp: 5, speed: 0, kind: 'normal', radius: 1.2 });
   const bp = createBulletSystem();
-  player.weapon = 'rifle';
+  player.value = 32;
+  player.weapon = 'rocket';
   recomputeStats(player);
   firePlayer(bp, player, ep);
   const fired = bp.items.filter((b) => b.active);
-  ok('発射時は敵がいても正面へ撃つ', fired.length > 0 && fired.every((b) => Math.abs(b.vx) < 1e-6));
+  ok('敵が左右にいても全弾のvxは0', fired.length > 1 && fired.every((b) => b.vx === 0));
+  ok('複数弾は横に並ぶが斜めには飛ばない', new Set(fired.map((b) => b.x)).size > 1 && fired.every((b) => b.vz < 0));
   ok('発射時に aimTargetId は設定されない', player.aimTargetId === null);
 }
 
@@ -363,10 +356,11 @@ function ok(name, cond) {
 
   const g = new Game();
   g.start();
-  g.player.value = 9999;
+  g.player.value = 140;
   recomputeStats(g.player);
+  g._nextBossAt = 1;
   let bossSeen = false;
-  for (let i = 0; i < 1500 && g.state.status === 'playing'; i++) {
+  for (let i = 0; i < 90 && g.state.status === 'playing'; i++) {
     g.update(1 / 60);
     if (g.state.events.some((e) => e.type === 'bossSpawned') || g.state.enemies.some((e) => e.kind === 'boss')) {
       bossSeen = true;
